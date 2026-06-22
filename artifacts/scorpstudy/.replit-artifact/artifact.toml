@@ -1,0 +1,31 @@
+kind = "web"
+previewPath = "/"
+title = "ScorpStudy"
+version = "1.0.0"
+id = "artifacts/scorpstudy"
+router = "path"
+
+[[integratedSkills]]
+name = "react-vite"
+version = "1.0.0"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 24009
+
+[services.development]
+run = "pnpm --filter @workspace/scorpstudy run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/scorpstudy", "run", "build" ]
+publicDir = "artifacts/scorpstudy/dist/public"
+serve = "static"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "24009"
+BASE_PATH = "/"
