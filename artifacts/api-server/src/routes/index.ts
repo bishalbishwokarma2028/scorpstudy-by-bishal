@@ -1,5 +1,6 @@
 import { Router, type IRouter } from "express";
 import healthRouter from "./health";
+import configRouter from "./config";
 import notesRouter from "./notes";
 import chatsRouter from "./chats";
 import quizzesRouter from "./quizzes";
@@ -12,6 +13,7 @@ import dashboardRouter from "./dashboard";
 const router: IRouter = Router();
 
 router.use(healthRouter);
+router.use(configRouter);
 router.use(notesRouter);
 router.use(chatsRouter);
 router.use(quizzesRouter);

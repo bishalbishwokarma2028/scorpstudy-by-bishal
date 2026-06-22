@@ -7,4 +7,4 @@ if (!apiKey) {
 
 export const groq = new Groq({ apiKey });
 
-export const GROQ_MODEL = "llama3-8b-8192";
+export const GROQ_MODEL = "llama-3.3-70b-versatile";

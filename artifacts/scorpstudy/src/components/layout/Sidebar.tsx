@@ -1,8 +1,9 @@
 import { Link, useLocation } from "wouter";
-import { MessageSquare, FileText, CheckSquare, Layers, Image as ImageIcon, BookOpen, Clock, LayoutDashboard, Menu } from "lucide-react";
+import { MessageSquare, FileText, CheckSquare, Layers, Image as ImageIcon, BookOpen, Clock, LayoutDashboard, Menu, LogOut } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
+import { useAuth } from "@/contexts/AuthContext";
 
 const NAV_ITEMS = [
   { href: "/dashboard", label: "Overview", icon: LayoutDashboard },
@@ -17,6 +18,7 @@ const NAV_ITEMS = [
 
 export function Sidebar({ className }: { className?: string }) {
   const [location] = useLocation();
+  const { user, signOut } = useAuth();
 
   const NavLinks = () => (
     <nav className="space-y-1 mt-6 px-3">
@@ -42,20 +44,37 @@ export function Sidebar({ className }: { className?: string }) {
     </nav>
   );
 
+  const Logo = () => (
+    <Link href="/dashboard" className="flex items-center gap-2">
+      <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center text-white font-bold text-xl flex-shrink-0">S</div>
+      <div className="leading-tight">
+        <span className="text-base font-bold text-slate-900 tracking-tight block">ScorpStudy</span>
+        <span className="text-xs text-primary font-medium block -mt-0.5">by Bishal</span>
+      </div>
+    </Link>
+  );
+
   return (
     <>
       <aside className={cn("hidden md:flex flex-col w-64 border-r border-slate-200 bg-white min-h-screen fixed left-0 top-0", className)}>
         <div className="p-4 border-b border-slate-100">
-          <Link href="/dashboard" className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center text-white font-bold text-xl">S</div>
-            <span className="text-xl font-bold text-slate-900 tracking-tight">ScorpStudy</span>
-          </Link>
+          <Logo />
         </div>
         <div className="flex-1 overflow-y-auto">
           <NavLinks />
         </div>
-        <div className="p-4 border-t border-slate-100 text-xs text-slate-500 text-center">
-          &copy; {new Date().getFullYear()} Bishal
+        <div className="p-4 border-t border-slate-100 space-y-2">
+          {user && (
+            <p className="text-xs text-slate-500 truncate px-1">{user.email}</p>
+          )}
+          <Button
+            variant="ghost"
+            size="sm"
+            className="w-full justify-start text-slate-600 hover:text-red-600 hover:bg-red-50"
+            onClick={signOut}
+          >
+            <LogOut className="w-4 h-4 mr-2" /> Sign Out
+          </Button>
         </div>
       </aside>
 
@@ -65,15 +84,25 @@ export function Sidebar({ className }: { className?: string }) {
             <Menu className="w-5 h-5" />
           </Button>
         </SheetTrigger>
-        <SheetContent side="left" className="w-64 p-0">
+        <SheetContent side="left" className="w-64 p-0 flex flex-col">
           <div className="p-4 border-b border-slate-100">
-            <Link href="/dashboard" className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center text-white font-bold text-xl">S</div>
-              <span className="text-xl font-bold text-slate-900 tracking-tight">ScorpStudy</span>
-            </Link>
+            <Logo />
           </div>
           <div className="flex-1 overflow-y-auto">
             <NavLinks />
+          </div>
+          <div className="p-4 border-t border-slate-100 space-y-2">
+            {user && (
+              <p className="text-xs text-slate-500 truncate px-1">{user.email}</p>
+            )}
+            <Button
+              variant="ghost"
+              size="sm"
+              className="w-full justify-start text-slate-600 hover:text-red-600 hover:bg-red-50"
+              onClick={signOut}
+            >
+              <LogOut className="w-4 h-4 mr-2" /> Sign Out
+            </Button>
           </div>
         </SheetContent>
       </Sheet>

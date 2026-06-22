@@ -2,8 +2,11 @@ import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import { ArrowRight, MessageSquare, FileText, CheckSquare, Layers, ImageIcon, BookOpen } from "lucide-react";
 import { motion } from "framer-motion";
+import { useAuth } from "@/contexts/AuthContext";
 
 export default function Landing() {
+  const { session } = useAuth();
+
   const features = [
     { icon: MessageSquare, title: "AI Chat Tutor", description: "Get answers to your questions instantly, just like chatting with a brilliant friend." },
     { icon: FileText, title: "PDF Summarizer", description: "Paste long texts and get key points, full summaries, and generated exam questions." },
@@ -19,15 +22,26 @@ export default function Landing() {
         <div className="container mx-auto px-4 h-16 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center text-white font-bold text-xl">S</div>
-            <span className="text-xl font-bold text-slate-900 tracking-tight">ScorpStudy</span>
+            <div className="leading-tight">
+              <span className="text-lg font-bold text-slate-900 tracking-tight block leading-none">ScorpStudy</span>
+              <span className="text-xs text-primary font-medium block">by Bishal</span>
+            </div>
           </div>
-          <div className="flex items-center gap-4">
-            <Link href="/dashboard">
-              <Button variant="ghost" className="text-slate-600 hover:text-slate-900">Sign In</Button>
-            </Link>
-            <Link href="/dashboard">
-              <Button>Get Started Free</Button>
-            </Link>
+          <div className="flex items-center gap-3">
+            {session ? (
+              <Link href="/dashboard">
+                <Button>Go to Dashboard</Button>
+              </Link>
+            ) : (
+              <>
+                <Link href="/signin">
+                  <Button variant="ghost" className="text-slate-600 hover:text-slate-900">Sign In</Button>
+                </Link>
+                <Link href="/signup">
+                  <Button>Get Started Free</Button>
+                </Link>
+              </>
+            )}
           </div>
         </div>
       </header>
@@ -36,7 +50,7 @@ export default function Landing() {
         <section className="py-24 px-4 relative overflow-hidden">
           <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-blue-100/50 via-white to-white -z-10"></div>
           <div className="container mx-auto max-w-4xl text-center">
-            <motion.h1 
+            <motion.h1
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5 }}
@@ -44,7 +58,7 @@ export default function Landing() {
             >
               Study Smarter with <span className="text-primary">ScorpStudy</span>
             </motion.h1>
-            <motion.p 
+            <motion.p
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5, delay: 0.1 }}
@@ -52,17 +66,24 @@ export default function Landing() {
             >
               Your personal AI study companion that feels like having a brilliant friend who can tutor you at 2am. Overcome procrastination and start grinding hard.
             </motion.p>
-            <motion.div 
+            <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5, delay: 0.2 }}
               className="flex items-center justify-center gap-4"
             >
-              <Link href="/dashboard">
+              <Link href={session ? "/dashboard" : "/signup"}>
                 <Button size="lg" className="h-12 px-8 text-lg rounded-full">
                   Get Started Free <ArrowRight className="ml-2 w-5 h-5" />
                 </Button>
               </Link>
+              {!session && (
+                <Link href="/signin">
+                  <Button size="lg" variant="outline" className="h-12 px-8 text-lg rounded-full">
+                    Sign In
+                  </Button>
+                </Link>
+              )}
             </motion.div>
           </div>
         </section>
@@ -75,7 +96,7 @@ export default function Landing() {
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
               {features.map((feature, i) => (
-                <motion.div 
+                <motion.div
                   key={i}
                   initial={{ opacity: 0, y: 20 }}
                   whileInView={{ opacity: 1, y: 0 }}
