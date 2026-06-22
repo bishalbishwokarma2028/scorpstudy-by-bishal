@@ -1,0 +1,373 @@
+# 🚀 REPLIT FULL PROJECT PROMPT — ScorpStudy by Bishal
+
+Copy and paste everything below into Replit Agent:
+
+---
+
+## PROJECT PROMPT
+
+Build a full-stack web application called **"ScorpStudy by Bishal"** — an AI-powered study assistant for college students. The app must be built with **Python (Flask)** backend and **HTML/CSS/JavaScript** frontend. It must be deployable on **Hostinger or Vercel** (use a `vercel.json` config file). Use **Supabase** for database and authentication.
+
+---
+
+## 🔑 API KEYS & ENVIRONMENT VARIABLES
+
+The app uses these 3 keys. Store all of them in a `.env` file in the root of the project AND in Replit's **Secrets** tab (🔒 lock icon on sidebar):
+
+```
+SUPABASE_URL=https://xxxxxxxxxxxxxxxxxxx.supabase.co
+SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+GROQ_API_KEY=gsk_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+```
+
+### How to get each key:
+
+**1. SUPABASE_URL & SUPABASE_ANON_KEY**
+- Go to 👉 https://supabase.com and log in
+- Open your project → click **"Project Settings"** (gear icon on sidebar)
+- Click **"API"** under Project Settings
+- Copy **"Project URL"** → this is your `SUPABASE_URL`
+- Copy **"anon public"** key under Project API Keys → this is your `SUPABASE_ANON_KEY`
+
+**2. GROQ_API_KEY**
+- Go to 👉 https://console.groq.com and sign up (free, no credit card)
+- Click **"API Keys"** on the left sidebar
+- Click **"Create API Key"** → give it any name → copy it
+- This is your `GROQ_API_KEY`
+
+### How to add keys in Replit:
+- Click the 🔒 **Secrets** icon on the left sidebar in Replit
+- Add each key one by one:
+  - Key: `SUPABASE_URL` → Value: your Supabase project URL
+  - Key: `SUPABASE_ANON_KEY` → Value: your Supabase anon key
+  - Key: `GROQ_API_KEY` → Value: your Groq API key
+- In `app.py`, load them like this:
+  ```python
+  from dotenv import load_dotenv
+  import os
+  load_dotenv()
+  
+  SUPABASE_URL = os.environ.get("SUPABASE_URL")
+  SUPABASE_ANON_KEY = os.environ.get("SUPABASE_ANON_KEY")
+  GROQ_API_KEY = os.environ.get("GROQ_API_KEY")
+  ```
+
+### How to add keys for Vercel deployment:
+- In your Vercel project → go to **Settings → Environment Variables**
+- Add all 3 keys there with the same names
+- Redeploy after adding them
+
+---
+
+## 🎨 DESIGN THEME
+
+- **Color theme:** Light mode — clean white background (#FFFFFF), primary blue (#2563EB), light blue accent (#EFF6FF), dark text (#1E293B)
+- **Font:** Inter (Google Fonts)
+- **Style:** Modern, clean, card-based layout with soft shadows and rounded corners
+- **Responsive:** Must work on mobile and desktop
+- **No dark mode** (light only)
+
+---
+
+## 🔐 AUTHENTICATION (Supabase)
+
+- **Sign Up page** — with email, password, full name fields
+- **Sign In page** — email and password
+- **Sign Out button** — always visible in navbar when logged in
+- Use Supabase Auth (email/password method)
+- After login, redirect to dashboard
+- Protect all pages — unauthenticated users must be redirected to Sign In
+- Show user's name in the navbar after login
+- Store these environment variables in `.env` and Replit Secrets (see 🔑 API KEYS section above):
+  ```
+  SUPABASE_URL=your_supabase_url
+  SUPABASE_ANON_KEY=your_supabase_anon_key
+  GROQ_API_KEY=your_groq_api_key
+  ```
+
+---
+
+## 📁 FOLDER STRUCTURE
+
+```
+scorpstudy/
+├── app.py                  # Main Flask app
+├── requirements.txt
+├── vercel.json             # For Vercel deployment
+├── .env                    # Environment variables (user fills this)
+├── static/
+│   ├── css/
+│   │   └── style.css
+│   ├── js/
+│   │   └── main.js
+│   └── uploads/            # Temporary file uploads
+├── templates/
+│   ├── base.html           # Base layout with navbar
+│   ├── index.html          # Landing page
+│   ├── auth/
+│   │   ├── signin.html
+│   │   └── signup.html
+│   └── dashboard/
+│       ├── dashboard.html
+│       ├── chat.html
+│       ├── quiz.html
+│       ├── flashcards.html
+│       ├── summarizer.html
+│       ├── image_gen.html
+│       ├── notes.html
+│       └── history.html
+```
+
+---
+
+## 🏠 LANDING PAGE (index.html)
+
+- Hero section: "Study Smarter with ScorpStudy" headline, subheadline, and two CTA buttons: **"Get Started Free"** (→ Sign Up) and **"Sign In"**
+- Features section: show 6 feature cards with icons:
+  - 🤖 AI Chat Tutor
+  - 📄 PDF Summarizer
+  - 🧠 Quiz Generator
+  - 🃏 Flashcard Maker
+  - 🖼️ Image Generator
+  - 📝 Smart Notes
+- Footer with app name and "ScorpStudy by Bishal — Built for students"
+
+---
+
+## 📊 DASHBOARD (after login)
+
+- Sidebar navigation with links to all features
+- Welcome message: "Welcome back, [User Name]!"
+- Stats cards: Total Quizzes Taken, Notes Saved, Flashcard Sets, Images Generated
+- Recent Activity feed (last 5 actions from Supabase)
+- Quick action buttons for each feature
+
+---
+
+## 🤖 FEATURE 1: AI Chat Tutor (/dashboard/chat)
+
+- Full chat interface like ChatGPT
+- User can type any study question
+- AI responds using **Groq API** with model `llama3-8b-8192`
+- Chat history shown in the UI (scrollable)
+- Save conversation button — saves to Supabase `chat_history` table
+- "New Chat" button to clear and start fresh
+- "Copy Response" button on each AI message
+- Support markdown in AI responses (use marked.js library)
+- Show typing indicator while AI is responding
+
+---
+
+## 📄 FEATURE 2: PDF / Notes Summarizer (/dashboard/summarizer)
+
+- Upload a PDF or paste raw text
+- Click "Summarize" button
+- AI reads the content and returns:
+  - 📌 Key Points (bullet list)
+  - 📝 Full Summary (paragraph)
+  - ❓ Possible exam questions from the content
+- Use `PyPDF2` to extract text from PDF
+- Save summary to Supabase `summaries` table
+- Download summary as .txt file button
+
+---
+
+## 🧠 FEATURE 3: Quiz Generator (/dashboard/quiz)
+
+- User inputs a topic (e.g., "Photosynthesis") OR pastes notes
+- Select number of questions: 5, 10, or 15
+- Select difficulty: Easy, Medium, Hard
+- Select type: Multiple Choice, True/False, or Mixed
+- AI generates quiz using Groq API
+- Display quiz as interactive form — user selects answers
+- Show results at end: score, correct answers, explanations
+- Save quiz results to Supabase `quiz_results` table
+
+---
+
+## 🃏 FEATURE 4: Flashcard Maker (/dashboard/flashcards)
+
+- User inputs a topic or pastes notes
+- AI generates 10 flashcards (front: question, back: answer)
+- Display as flippable cards (CSS flip animation on click)
+- Navigation buttons: Previous / Next
+- "Shuffle" button to randomize order
+- Save flashcard set to Supabase `flashcards` table
+- View saved sets from history
+
+---
+
+## 🖼️ FEATURE 5: AI Image Generator (/dashboard/image-gen)
+
+- Text input: user types a prompt (e.g., "diagram of cell division")
+- Style selector: Realistic, Cartoon, Diagram, Artistic
+- Click "Generate Image" button
+- Use **Pollinations AI** — completely free, no API key needed
+  - URL format: `https://image.pollinations.ai/prompt/{encoded_prompt}?width=800&height=600&nologo=true`
+- Display generated image on the page
+- "Download Image" button
+- "Regenerate" button
+- Save image URL to Supabase `generated_images` table
+- Show gallery of previously generated images
+
+---
+
+## 📝 FEATURE 6: Smart Notes (/dashboard/notes)
+
+- Rich text area to write notes
+- "AI Enhance" button — AI improves, structures, and formats the notes
+- "AI Summarize" button — condenses the notes
+- "Generate Flashcards from Notes" button — links to flashcard feature
+- Save notes with a title to Supabase `notes` table
+- List all saved notes with edit/delete options
+- Search bar to search through saved notes
+
+---
+
+## 📜 FEATURE 7: History (/dashboard/history)
+
+- Show all past activities in a timeline:
+  - Past chats
+  - Past quizzes with scores
+  - Past summaries
+  - Past flashcard sets
+  - Past generated images
+- Filter by type (Chat / Quiz / Summary / Flashcards / Images)
+- Delete individual history items
+
+---
+
+## 🗄️ SUPABASE DATABASE TABLES
+
+Create these tables in Supabase (add SQL comments in code):
+
+```sql
+-- Users handled by Supabase Auth
+
+CREATE TABLE notes (
+  id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
+  user_id uuid REFERENCES auth.users,
+  title text,
+  content text,
+  created_at timestamp DEFAULT now()
+);
+
+CREATE TABLE chat_history (
+  id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
+  user_id uuid REFERENCES auth.users,
+  messages jsonb,
+  created_at timestamp DEFAULT now()
+);
+
+CREATE TABLE quiz_results (
+  id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
+  user_id uuid REFERENCES auth.users,
+  topic text,
+  score int,
+  total int,
+  questions jsonb,
+  created_at timestamp DEFAULT now()
+);
+
+CREATE TABLE flashcards (
+  id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
+  user_id uuid REFERENCES auth.users,
+  topic text,
+  cards jsonb,
+  created_at timestamp DEFAULT now()
+);
+
+CREATE TABLE summaries (
+  id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
+  user_id uuid REFERENCES auth.users,
+  original_text text,
+  summary text,
+  key_points jsonb,
+  created_at timestamp DEFAULT now()
+);
+
+CREATE TABLE generated_images (
+  id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
+  user_id uuid REFERENCES auth.users,
+  prompt text,
+  image_url text,
+  created_at timestamp DEFAULT now()
+);
+```
+
+---
+
+## 📦 REQUIREMENTS (requirements.txt)
+
+```
+flask==3.0.0
+python-dotenv==1.0.0
+supabase==2.3.0
+groq==0.4.2
+PyPDF2==3.0.1
+requests==2.31.0
+gunicorn==21.2.0
+```
+
+---
+
+## 🚀 VERCEL DEPLOYMENT CONFIG (vercel.json)
+
+```json
+{
+  "version": 2,
+  "builds": [
+    {
+      "src": "app.py",
+      "use": "@vercel/python"
+    }
+  ],
+  "routes": [
+    {
+      "src": "/(.*)",
+      "dest": "app.py"
+    }
+  ]
+}
+```
+
+---
+
+## ⚙️ ADDITIONAL REQUIREMENTS
+
+- All API calls must have proper **error handling** with user-friendly error messages
+- Show **loading spinners** while AI is processing
+- All forms must have **input validation**
+- Use **Flask sessions** to maintain login state on the frontend
+- Every page must have a **back to dashboard** button
+- Add a **copy to clipboard** button on all AI-generated text
+- The navbar must show: Logo | Dashboard | Features dropdown | Sign Out
+- Mobile hamburger menu for small screens
+- Add a **"How to use"** tooltip or help icon on each feature page
+- All Supabase queries must include the user's ID to keep data private
+- Use `flask-cors` for CORS support (needed for Vercel)
+
+---
+
+## 🏁 START COMMAND
+
+```bash
+python app.py
+```
+
+For production:
+```bash
+gunicorn app:app
+```
+
+---
+
+## 📌 IMPORTANT NOTES FOR THE AI AGENT
+
+1. Build ALL features completely — do not leave placeholders or TODOs
+2. Every button must be functional
+3. Use Groq API for all AI features (model: `llama3-8b-8192`)
+4. Use Pollinations AI for image generation (no API key needed)
+5. All environment variables must be loaded from `.env` file
+6. The `.env` file must NOT be committed — add it to `.gitignore`
+7. Create a `README.md` with setup instructions and how to add Supabase keys
