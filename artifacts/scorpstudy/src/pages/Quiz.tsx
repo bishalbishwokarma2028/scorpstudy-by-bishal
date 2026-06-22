@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useAiGenerateQuiz, useSaveQuizResult } from "@workspace/api-client-react";
-import { CheckSquare, Loader2, Save, RefreshCw, CheckCircle2, XCircle } from "lucide-react";
+import { CheckSquare, Loader2, Save, RefreshCw, CheckCircle2, XCircle, Trophy, RotateCcw } from "lucide-react";
 import { toast } from "sonner";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
@@ -19,42 +19,35 @@ interface QuizQuestion {
 
 export default function Quiz() {
   const [topic, setTopic] = useState("");
-  const [count, setCount] = useState("5");
+  const [count, setCount] = useState("15");
   const [difficulty, setDifficulty] = useState("Medium");
   const [type, setType] = useState("Multiple Choice");
-  
+  const [quizSeed, setQuizSeed] = useState(0);
+
   const [questions, setQuestions] = useState<QuizQuestion[]>([]);
   const [answers, setAnswers] = useState<Record<number, string>>({});
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [score, setScore] = useState(0);
-  
+
   const generateQuiz = useAiGenerateQuiz();
   const saveQuiz = useSaveQuizResult();
 
   const handleGenerate = async () => {
-    if (!topic.trim()) {
-      toast.error("Please enter a topic");
-      return;
-    }
-    
+    if (!topic.trim()) { toast.error("Please enter a topic"); return; }
     setQuestions([]);
     setAnswers({});
     setIsSubmitted(false);
     setScore(0);
-    
+    const newSeed = Date.now();
+    setQuizSeed(newSeed);
     try {
-      const response = await generateQuiz.mutateAsync({ 
-        data: { 
-          topic, 
-          count: parseInt(count), 
-          difficulty, 
-          type 
-        } 
+      const response = await generateQuiz.mutateAsync({
+        data: { topic: `${topic} [variation-seed:${newSeed}]`, count: parseInt(count), difficulty, type }
       });
-      setQuestions(response.questions);
-      toast.success("Quiz generated!");
-    } catch (error) {
-      toast.error("Failed to generate quiz");
+      setQuestions(response.questions as QuizQuestion[]);
+      toast.success(`${response.questions.length} questions generated!`);
+    } catch {
+      toast.error("Failed to generate quiz. Please try again.");
     }
   };
 
@@ -63,41 +56,28 @@ export default function Quiz() {
       toast.error("Please answer all questions before submitting");
       return;
     }
-    
     let calculatedScore = 0;
-    questions.forEach((q, i) => {
-      if (answers[i] === q.correctAnswer) {
-        calculatedScore++;
-      }
-    });
-    
+    questions.forEach((q, i) => { if (answers[i] === q.correctAnswer) calculatedScore++; });
     setScore(calculatedScore);
     setIsSubmitted(true);
-    
     try {
-      await saveQuiz.mutateAsync({
-        data: {
-          topic,
-          score: calculatedScore,
-          total: questions.length,
-          questions
-        }
-      });
-      toast.success("Quiz results saved to history");
-    } catch (error) {
-      toast.error("Failed to save results");
-    }
+      await saveQuiz.mutateAsync({ data: { topic, score: calculatedScore, total: questions.length, questions } });
+      toast.success("Quiz results saved!");
+    } catch { }
   };
+
+  const pct = questions.length ? Math.round((score / questions.length) * 100) : 0;
+  const grade = pct >= 90 ? "A+" : pct >= 80 ? "A" : pct >= 70 ? "B" : pct >= 60 ? "C" : "D";
 
   return (
     <DashboardLayout>
-      <div className="space-y-6 max-w-4xl mx-auto">
+      <div className="space-y-4 max-w-4xl mx-auto">
         <div>
           <h1 className="text-2xl font-bold text-slate-900 flex items-center gap-2">
             <CheckSquare className="w-6 h-6 text-violet-600" />
             Quiz Generator
           </h1>
-          <p className="text-slate-500 mt-1">Test your knowledge with custom AI-generated quizzes.</p>
+          <p className="text-slate-500 mt-1 text-sm">Test your knowledge with unique AI-generated quizzes — no repeated questions.</p>
         </div>
 
         {!questions.length ? (
@@ -109,35 +89,27 @@ export default function Quiz() {
             <CardContent className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="topic">Topic</Label>
-                <Input 
-                  id="topic" 
-                  placeholder="e.g., Cellular Respiration, World War II, React Hooks" 
-                  value={topic}
-                  onChange={(e) => setTopic(e.target.value)}
-                />
+                <Input id="topic" placeholder="e.g., Cellular Respiration, World War II, React Hooks" value={topic}
+                  onChange={(e) => setTopic(e.target.value)} onKeyDown={(e) => e.key === "Enter" && handleGenerate()} />
               </div>
-              
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div className="space-y-2">
                   <Label>Number of Questions</Label>
                   <Select value={count} onValueChange={setCount}>
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="5">5 Questions</SelectItem>
-                      <SelectItem value="10">10 Questions</SelectItem>
                       <SelectItem value="15">15 Questions</SelectItem>
+                      <SelectItem value="30">30 Questions</SelectItem>
+                      <SelectItem value="50">50 Questions</SelectItem>
+                      <SelectItem value="80">80 Questions</SelectItem>
+                      <SelectItem value="100">100 Questions</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
-                
                 <div className="space-y-2">
                   <Label>Difficulty</Label>
                   <Select value={difficulty} onValueChange={setDifficulty}>
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="Easy">Easy</SelectItem>
                       <SelectItem value="Medium">Medium</SelectItem>
@@ -145,13 +117,10 @@ export default function Quiz() {
                     </SelectContent>
                   </Select>
                 </div>
-                
                 <div className="space-y-2">
                   <Label>Question Type</Label>
                   <Select value={type} onValueChange={setType}>
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="Multiple Choice">Multiple Choice</SelectItem>
                       <SelectItem value="True-False">True/False</SelectItem>
@@ -160,92 +129,97 @@ export default function Quiz() {
                   </Select>
                 </div>
               </div>
+              {parseInt(count) >= 50 && (
+                <div className="bg-amber-50 border border-amber-200 text-amber-800 text-sm rounded-lg px-4 py-2">
+                  ⚠️ Large quizzes ({count} questions) may take 30–60 seconds to generate.
+                </div>
+              )}
             </CardContent>
             <CardFooter>
               <Button onClick={handleGenerate} disabled={generateQuiz.isPending || !topic.trim()} className="w-full bg-violet-600 hover:bg-violet-700">
-                {generateQuiz.isPending ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <CheckSquare className="w-4 h-4 mr-2" />}
-                Generate Quiz
+                {generateQuiz.isPending ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Generating {count} Questions...</> : <><CheckSquare className="w-4 h-4 mr-2" />Generate Quiz</>}
               </Button>
             </CardFooter>
           </Card>
         ) : (
-          <div className="space-y-6">
+          <div className="space-y-4">
             <Card className="bg-violet-50 border-violet-100">
-              <CardContent className="p-6 flex items-center justify-between">
+              <CardContent className="p-4 flex flex-wrap items-center justify-between gap-3">
                 <div>
-                  <h2 className="text-xl font-bold text-violet-900">{topic} Quiz</h2>
-                  <p className="text-violet-700 text-sm">{questions.length} questions • {difficulty}</p>
+                  <h2 className="text-lg font-bold text-violet-900">{topic}</h2>
+                  <p className="text-violet-700 text-sm">{questions.length} questions • {difficulty} • {type}</p>
                 </div>
                 {isSubmitted && (
-                  <div className="text-right">
-                    <div className="text-3xl font-black text-violet-700">{score}/{questions.length}</div>
-                    <div className="text-sm font-medium text-violet-600">{Math.round((score / questions.length) * 100)}%</div>
+                  <div className="flex items-center gap-4">
+                    <div className="text-center">
+                      <div className="text-3xl font-black text-violet-700">{score}/{questions.length}</div>
+                      <div className="text-sm font-medium text-violet-600">{pct}% — Grade {grade}</div>
+                    </div>
+                    <Trophy className={`w-8 h-8 ${pct >= 70 ? "text-yellow-500" : "text-slate-300"}`} />
+                  </div>
+                )}
+                {!isSubmitted && (
+                  <div className="text-sm text-violet-700 font-medium">
+                    {Object.keys(answers).length}/{questions.length} answered
                   </div>
                 )}
               </CardContent>
             </Card>
 
             {questions.map((q, qIndex) => (
-              <Card key={qIndex} className={`border-slate-200 ${isSubmitted ? (answers[qIndex] === q.correctAnswer ? 'border-green-200 bg-green-50/30' : 'border-red-200 bg-red-50/30') : ''}`}>
-                <CardHeader>
-                  <CardTitle className="text-base leading-relaxed flex gap-2">
-                    <span className="text-slate-400">{qIndex + 1}.</span> 
+              <Card key={qIndex} className={`border-slate-200 transition-colors ${isSubmitted ? (answers[qIndex] === q.correctAnswer ? "border-green-300 bg-green-50/40" : "border-red-300 bg-red-50/40") : ""}`}>
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-base leading-relaxed flex gap-2 font-medium">
+                    <span className="text-violet-500 font-bold shrink-0">{qIndex + 1}.</span>
                     {q.question}
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <RadioGroup 
-                    value={answers[qIndex] || ""} 
-                    onValueChange={(val) => !isSubmitted && setAnswers(prev => ({...prev, [qIndex]: val}))}
-                    className="space-y-3"
-                  >
+                  <RadioGroup value={answers[qIndex] || ""} onValueChange={(val) => !isSubmitted && setAnswers(prev => ({ ...prev, [qIndex]: val }))} className="space-y-2">
                     {q.options.map((opt, oIndex) => {
-                      let itemClass = "flex items-center space-x-3 space-y-0 p-3 rounded-lg border cursor-pointer transition-colors";
+                      let itemClass = "flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-colors text-sm";
                       let icon = null;
-                      
                       if (!isSubmitted) {
-                        itemClass += answers[qIndex] === opt ? " border-violet-600 bg-violet-50" : " border-slate-200 hover:bg-slate-50";
+                        itemClass += answers[qIndex] === opt ? " border-violet-500 bg-violet-50 text-violet-900" : " border-slate-200 hover:bg-slate-50";
                       } else {
-                        if (opt === q.correctAnswer) {
-                          itemClass += " border-green-500 bg-green-100 text-green-900";
-                          icon = <CheckCircle2 className="w-5 h-5 text-green-600 ml-auto" />;
-                        } else if (answers[qIndex] === opt && opt !== q.correctAnswer) {
-                          itemClass += " border-red-500 bg-red-100 text-red-900";
-                          icon = <XCircle className="w-5 h-5 text-red-600 ml-auto" />;
-                        } else {
-                          itemClass += " border-slate-200 opacity-60";
-                        }
+                        if (opt === q.correctAnswer) { itemClass += " border-green-500 bg-green-100 text-green-900"; icon = <CheckCircle2 className="w-4 h-4 text-green-600 ml-auto shrink-0" />; }
+                        else if (answers[qIndex] === opt) { itemClass += " border-red-500 bg-red-100 text-red-900"; icon = <XCircle className="w-4 h-4 text-red-600 ml-auto shrink-0" />; }
+                        else { itemClass += " border-slate-200 opacity-50"; }
                       }
-                      
                       return (
                         <Label key={oIndex} className={itemClass}>
-                          <RadioGroupItem value={opt} id={`q${qIndex}-o${oIndex}`} disabled={isSubmitted} className={isSubmitted ? "opacity-0 absolute" : ""} />
+                          <RadioGroupItem value={opt} id={`q${qIndex}-o${oIndex}`} disabled={isSubmitted} className={isSubmitted ? "sr-only" : ""} />
                           <span className="flex-1 font-medium">{opt}</span>
                           {icon}
                         </Label>
                       );
                     })}
                   </RadioGroup>
-                  
-                  {isSubmitted && (
-                    <div className="mt-4 p-4 rounded-lg bg-white border border-slate-100 text-sm">
-                      <p className="font-semibold text-slate-700 mb-1">Explanation:</p>
-                      <p className="text-slate-600">{q.explanation}</p>
+                  {isSubmitted && q.explanation && (
+                    <div className="mt-3 p-3 rounded-lg bg-white border border-slate-200 text-sm">
+                      <span className="font-semibold text-slate-700">💡 Explanation: </span>
+                      <span className="text-slate-600">{q.explanation}</span>
                     </div>
                   )}
                 </CardContent>
               </Card>
             ))}
 
-            <div className="flex justify-between">
-              <Button variant="outline" onClick={() => setQuestions([])}>
-                <RefreshCw className="w-4 h-4 mr-2" /> Start Over
+            <div className="flex flex-wrap justify-between gap-3 pb-6">
+              <Button variant="outline" onClick={() => setQuestions([])} className="gap-2">
+                <RotateCcw className="w-4 h-4" /> New Quiz
               </Button>
-              {!isSubmitted && (
-                <Button onClick={handleSubmit} className="bg-violet-600 hover:bg-violet-700 px-8">
-                  Submit Quiz
+              <div className="flex gap-3">
+                <Button variant="outline" onClick={handleGenerate} disabled={generateQuiz.isPending} className="gap-2">
+                  <RefreshCw className="w-4 h-4" /> Different Questions
                 </Button>
-              )}
+                {!isSubmitted && (
+                  <Button onClick={handleSubmit} className="bg-violet-600 hover:bg-violet-700 px-8 gap-2" disabled={saveQuiz.isPending}>
+                    {saveQuiz.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
+                    Submit Quiz
+                  </Button>
+                )}
+              </div>
             </div>
           </div>
         )}

@@ -202,4 +202,66 @@ router.post("/ai/enhance-notes", async (req, res): Promise<void> => {
   res.json({ content: enhanced });
 });
 
+router.post("/ai/visualize", async (req, res): Promise<void> => {
+  const text: unknown = req.body?.text;
+  if (typeof text !== "string" || text.trim().length === 0) {
+    res.status(400).json({ error: "text is required" });
+    return;
+  }
+  const safeText = text.trim().slice(0, 3000);
+
+  const prompt = `You are a visual learning expert. Analyze this text and create a clear, memorable visual explanation for college students.
+
+Text: "${safeText}"
+
+Create a structured visual breakdown in EXACTLY this JSON format (no extra fields):
+{
+  "title": "Short concept title (max 5 words)",
+  "type": "flow",
+  "summary": "One-sentence core idea",
+  "nodes": [
+    { "id": "1", "label": "Label", "detail": "Brief detail max 15 words", "color": "blue" },
+    { "id": "2", "label": "Label", "detail": "Brief detail max 15 words", "color": "green" }
+  ],
+  "connections": [
+    { "from": "1", "to": "2", "label": "leads to" }
+  ],
+  "keyFacts": ["Key fact 1", "Key fact 2", "Key fact 3"],
+  "memoryTip": "A memorable mnemonic or tip"
+}
+
+Rules:
+- nodes: 3-6 nodes max, color must be one of: blue, green, purple, orange, red, teal
+- connections: show how nodes relate
+- keyFacts: 3-5 bullet facts students must remember
+- type options: flow, cycle, hierarchy, comparison, list
+- Keep everything concise and student-friendly`;
+
+  const completion = await groq.chat.completions.create({
+    model: GROQ_MODEL,
+    messages: [{ role: "user", content: prompt }],
+    max_tokens: 1200,
+    response_format: { type: "json_object" },
+  });
+
+  const raw = completion.choices[0]?.message?.content ?? "{}";
+  let result: unknown;
+  try {
+    result = JSON.parse(raw);
+  } catch {
+    logger.error({ raw }, "Failed to parse visualize response");
+    result = {
+      title: "Concept Visual",
+      type: "list",
+      summary: safeText.slice(0, 100),
+      nodes: [],
+      connections: [],
+      keyFacts: [],
+      memoryTip: "",
+    };
+  }
+
+  res.json(result);
+});
+
 export default router;

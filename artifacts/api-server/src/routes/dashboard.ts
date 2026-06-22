@@ -65,7 +65,7 @@ router.get("/dashboard/activity", async (_req, res): Promise<void> => {
     })),
     ...flashcards.map((f) => ({
       id: `flashcard-${f.id}`,
-      type: "flashcard",
+      type: "flashcard_set",
       title: `Flashcards: ${f.topic}`,
       createdAt: f.createdAt.toISOString(),
     })),
