@@ -7,12 +7,30 @@ const router: IRouter = Router();
 
 router.get("/chats", async (_req, res): Promise<void> => {
   const rows = await db.select().from(chatsTable).orderBy(chatsTable.createdAt);
-  res.json(
-    rows.map((c) => ({
-      ...c,
-      createdAt: c.createdAt.toISOString(),
-    }))
-  );
+  res.json(rows.map((c) => ({ ...c, createdAt: c.createdAt.toISOString() })));
+});
+
+router.get("/chats/:id", async (req, res): Promise<void> => {
+  const id = parseInt(req.params.id, 10);
+  if (isNaN(id)) { res.status(400).json({ error: "Invalid id" }); return; }
+  const [chat] = await db.select().from(chatsTable).where(eq(chatsTable.id, id));
+  if (!chat) { res.status(404).json({ error: "Chat not found" }); return; }
+  res.json({ ...chat, createdAt: chat.createdAt.toISOString() });
+});
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+router.patch("/chats/:id", async (req, res): Promise<void> => {
+  const id = parseInt(req.params.id, 10);
+  if (isNaN(id)) { res.status(400).json({ error: "Invalid id" }); return; }
+  const { messages, title } = req.body as { messages?: unknown; title?: string };
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const updates: any = {};
+  if (messages !== undefined) updates.messages = messages;
+  if (title !== undefined) updates.title = title;
+  if (Object.keys(updates).length === 0) { res.status(400).json({ error: "Nothing to update" }); return; }
+  const [chat] = await db.update(chatsTable).set(updates).where(eq(chatsTable.id, id)).returning();
+  if (!chat) { res.status(404).json({ error: "Chat not found" }); return; }
+  res.json({ ...chat, createdAt: chat.createdAt.toISOString() });
 });
 
 router.post("/chats", async (req, res): Promise<void> => {

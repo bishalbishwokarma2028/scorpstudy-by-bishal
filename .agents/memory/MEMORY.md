@@ -1,0 +1,1 @@
+- [ScorpStudy architecture](scorpstudy-arch.md) — Full-stack AI study app; key patterns for backend identity, quiz chunking, session persistence.

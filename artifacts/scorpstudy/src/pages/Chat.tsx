@@ -3,18 +3,28 @@ import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent } from "@/components/ui/card";
-import { useCreateChat } from "@workspace/api-client-react";
 import {
   Plus, Save, Send, Copy, Loader2, Bot, User,
-  Wand2, GraduationCap, ImageIcon, X, Sparkles
+  Wand2, GraduationCap, ImageIcon, X, Sparkles,
+  Paperclip, FileText, Image as ImgIcon, Check,
 } from "lucide-react";
 import { toast } from "sonner";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import { useLocation } from "wouter";
 
 interface Message {
   role: "user" | "assistant";
   content: string;
+  attachmentName?: string;
+}
+
+interface AttachedFile {
+  name: string;
+  kind: "image" | "document";
+  content: string;
+  mimeType: string;
+  thumbnail?: string;
 }
 
 interface VisualData {
@@ -36,45 +46,55 @@ const COLOR_MAP: Record<string, string> = {
   teal: "bg-teal-100 border-teal-300 text-teal-900",
 };
 
+const BASE = import.meta.env.BASE_URL?.replace(/\/$/, "") ?? "";
+
+// Module-level state — persists across route changes in this SPA
+const persist = {
+  messages: [] as Message[],
+  sessionChatId: null as number | null,
+  isTopperMode: false,
+  loadedSessionId: null as number | null,
+};
+
 function VisualModal({ data, onClose }: { data: VisualData; onClose: () => void }) {
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm" onClick={onClose}>
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
-        {/* Header */}
-        <div className="flex items-center justify-between p-5 border-b border-slate-100 bg-gradient-to-r from-primary/5 to-purple-500/5 rounded-t-2xl">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm" onClick={onClose}>
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[92vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between p-5 border-b border-slate-100 bg-gradient-to-r from-purple-50 to-blue-50 rounded-t-2xl">
           <div>
             <div className="flex items-center gap-2">
-              <Sparkles className="w-5 h-5 text-primary" />
+              <div className="w-7 h-7 rounded-lg bg-purple-600 flex items-center justify-center">
+                <Sparkles className="w-4 h-4 text-white" />
+              </div>
               <h2 className="text-lg font-bold text-slate-900">{data.title}</h2>
             </div>
-            <p className="text-sm text-slate-500 mt-0.5">{data.summary}</p>
+            <p className="text-sm text-slate-500 mt-1 ml-9">{data.summary}</p>
           </div>
-          <Button variant="ghost" size="icon" onClick={onClose} className="shrink-0"><X className="w-5 h-5" /></Button>
+          <Button variant="ghost" size="icon" onClick={onClose} className="shrink-0 rounded-full"><X className="w-5 h-5" /></Button>
         </div>
 
-        <div className="p-5 space-y-5">
-          {/* Nodes */}
-          {data.nodes && data.nodes.length > 0 && (
+        <div className="p-5 space-y-6">
+          {data.nodes?.length > 0 && (
             <div>
-              <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3">Visual Breakdown</h3>
+              <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-4">Visual Breakdown</h3>
               <div className="space-y-2">
                 {data.nodes.map((node, i) => {
                   const colorClass = COLOR_MAP[node.color] ?? COLOR_MAP.blue;
                   const nextNode = data.nodes[i + 1];
-                  const connection = data.connections?.find(c => c.from === node.id && c.to === nextNode?.id);
+                  const conn = data.connections?.find(c => c.from === node.id && c.to === nextNode?.id);
                   return (
                     <div key={node.id}>
-                      <div className={`flex gap-3 p-3 rounded-xl border-2 ${colorClass}`}>
-                        <div className="w-7 h-7 rounded-full bg-white/60 flex items-center justify-center font-bold text-sm shrink-0">{i + 1}</div>
+                      <div className={`flex gap-3 p-3 rounded-xl border-2 ${colorClass} shadow-sm`}>
+                        <div className="w-8 h-8 rounded-full bg-white/70 flex items-center justify-center font-bold text-sm shrink-0">{i + 1}</div>
                         <div>
-                          <div className="font-semibold text-sm">{node.label}</div>
-                          <div className="text-xs opacity-80 mt-0.5">{node.detail}</div>
+                          <div className="font-bold text-sm">{node.label}</div>
+                          {node.detail && <div className="text-xs opacity-75 mt-0.5">{node.detail}</div>}
                         </div>
                       </div>
-                      {connection && (
-                        <div className="flex items-center gap-2 pl-9 py-1">
-                          <div className="w-0.5 h-5 bg-slate-200" />
-                          <span className="text-[10px] text-slate-400 italic">{connection.label}</span>
+                      {conn && (
+                        <div className="flex items-center gap-2 pl-10 py-1">
+                          <div className="w-0.5 h-5 bg-slate-200 rounded" />
+                          <span className="text-[10px] text-slate-400 italic bg-slate-50 px-2 py-0.5 rounded-full border border-slate-100">{conn.label}</span>
                         </div>
                       )}
                     </div>
@@ -84,29 +104,27 @@ function VisualModal({ data, onClose }: { data: VisualData; onClose: () => void 
             </div>
           )}
 
-          {/* Key Facts */}
-          {data.keyFacts && data.keyFacts.length > 0 && (
+          {data.keyFacts?.length > 0 && (
             <div>
-              <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3">🔑 Must-Remember Facts</h3>
-              <div className="space-y-2">
+              <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-3">🔑 Must Remember</h3>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                 {data.keyFacts.map((fact, i) => (
-                  <div key={i} className="flex gap-2.5 text-sm text-slate-700 bg-yellow-50 border border-yellow-200 rounded-lg p-2.5">
-                    <span className="text-yellow-600 font-bold shrink-0">★</span>
-                    <span>{fact}</span>
+                  <div key={i} className="flex gap-2 text-sm bg-amber-50 border border-amber-200 rounded-lg p-2.5">
+                    <span className="text-amber-500 font-bold shrink-0">★</span>
+                    <span className="text-slate-700">{fact}</span>
                   </div>
                 ))}
               </div>
             </div>
           )}
 
-          {/* Memory Tip */}
           {data.memoryTip && (
-            <div className="bg-green-50 border border-green-200 rounded-xl p-4">
+            <div className="bg-emerald-50 border-2 border-emerald-200 rounded-xl p-4">
               <div className="flex items-center gap-2 mb-1">
-                <span className="text-lg">🧠</span>
-                <h3 className="text-sm font-bold text-green-800">Memory Tip</h3>
+                <span className="text-xl">🧠</span>
+                <h3 className="text-sm font-bold text-emerald-800">Memory Trick</h3>
               </div>
-              <p className="text-sm text-green-700">{data.memoryTip}</p>
+              <p className="text-sm text-emerald-700 italic">"{data.memoryTip}"</p>
             </div>
           )}
         </div>
@@ -115,69 +133,158 @@ function VisualModal({ data, onClose }: { data: VisualData; onClose: () => void 
   );
 }
 
-const BASE = import.meta.env.BASE_URL?.replace(/\/$/, "") ?? "";
-
-async function callAiChat(messages: Message[], isTopper: boolean): Promise<string> {
-  const systemMessages = isTopper
-    ? [{
-      role: "system",
-      content: "You are an elite academic tutor explaining like a top-ranking student. Give EXTREMELY detailed answers — cover every minor subtopic, definition, formula, example, and application. Use structured headers (##), bullet points, numbered steps, and **bold** for critical terms. Include: theory, mechanism, real-world examples, common exam traps, and a quick revision summary at the end. Make your answer so complete that a student could pass any exam just from reading it."
-    }]
-    : [{
-      role: "system",
-      content: "You are ScorpStudy — Bishal's AI tutor for college students. Explain concepts clearly, step-by-step. Use **bold** to highlight every important term, formula, or key concept. Use ## headers to organize long answers. Include examples. Be encouraging and educational. Format with markdown."
-    }];
-
-  const res = await fetch(`${BASE}/api/ai/chat`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ messages: [...systemMessages, ...messages] }),
-  });
-  if (!res.ok) throw new Error("AI request failed");
-  const data = await res.json();
-  return data.content as string;
-}
-
 async function callVisualize(text: string): Promise<VisualData> {
   const res = await fetch(`${BASE}/api/ai/visualize`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ text }),
   });
-  if (!res.ok) throw new Error("Visualize request failed");
+  if (!res.ok) throw new Error("Visualize failed");
   return res.json();
 }
 
+async function autoSaveChat(msgs: Message[]): Promise<void> {
+  if (msgs.length < 2) return;
+  try {
+    const rawTitle = msgs[0].content.replace(/\[Document:[^\]]*\]/g, "").trim();
+    const title = rawTitle.slice(0, 80) + (rawTitle.length > 80 ? "..." : "");
+    if (persist.sessionChatId === null) {
+      const res = await fetch(`${BASE}/api/chats`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ title, messages: msgs }),
+      });
+      if (res.ok) { const d = await res.json(); persist.sessionChatId = d.id; }
+    } else {
+      await fetch(`${BASE}/api/chats/${persist.sessionChatId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ messages: msgs }),
+      });
+    }
+  } catch { /* silent */ }
+}
+
+const STARTERS = [
+  "Explain Newton's Laws of Motion",
+  "What is Photosynthesis?",
+  "How does Recursion work?",
+  "Translate: मलाई पानी चाहिन्छ",
+  "Explain the Water Cycle",
+  "What is Quantum Mechanics?",
+];
+
 export default function Chat() {
-  const [messages, setMessages] = useState<Message[]>([]);
+  const [messages, setMessages] = useState<Message[]>(persist.messages);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const [isTopperMode, setIsTopperMode] = useState(false);
+  const [isTopperMode, setIsTopperMode] = useState(persist.isTopperMode);
   const [visualData, setVisualData] = useState<VisualData | null>(null);
-  const [visualLoading, setVisualLoading] = useState<number | null>(null);
+  const [visualLoading, setVisualLoading] = useState<number | "global" | null>(null);
+  const [attachedFile, setAttachedFile] = useState<AttachedFile | null>(null);
+  const [savedThisSession, setSavedThisSession] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const saveChat = useCreateChat();
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [location] = useLocation();
 
   const scrollToBottom = useCallback(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
   }, []);
 
   useEffect(() => {
-    if (messages.length > 0) {
-      setTimeout(scrollToBottom, 100);
+    if (messages.length > 0) setTimeout(scrollToBottom, 80);
+  }, [messages.length, isLoading, scrollToBottom]);
+
+  // Load session from URL param (e.g. when clicking from History)
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const sid = params.get("sessionId");
+    if (sid) {
+      const id = parseInt(sid, 10);
+      if (!isNaN(id) && id !== persist.loadedSessionId) {
+        persist.loadedSessionId = id;
+        persist.sessionChatId = id;
+        persist.messages = [];
+        setMessages([]);
+        fetch(`${BASE}/api/chats/${id}`)
+          .then(r => r.json())
+          .then(d => {
+            if (Array.isArray(d.messages)) {
+              persist.messages = d.messages;
+              setMessages(d.messages);
+            }
+          })
+          .catch(() => toast.error("Failed to load saved chat"));
+      }
     }
-  }, [messages, isLoading, scrollToBottom]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [location]);
+
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const isImage = file.type.startsWith("image/");
+    const reader = new FileReader();
+    if (isImage) {
+      reader.onload = () => {
+        setAttachedFile({ name: file.name, kind: "image", content: reader.result as string, mimeType: file.type, thumbnail: reader.result as string });
+      };
+      reader.readAsDataURL(file);
+    } else {
+      reader.onload = () => {
+        const text = typeof reader.result === "string" ? reader.result : "";
+        setAttachedFile({ name: file.name, kind: "document", content: text.slice(0, 8000), mimeType: file.type });
+        if (!text.trim()) toast.info("Could not extract text from this file. Try copying the text directly.");
+      };
+      reader.readAsText(file);
+    }
+    e.target.value = "";
+  };
 
   const handleSend = async () => {
     if (!input.trim() || isLoading) return;
-    const userMessage: Message = { role: "user", content: input.trim() };
-    const newMessages = [...messages, userMessage];
+    setSavedThisSession(false);
+
+    let msgContent = input.trim();
+    let imageData: string | null = null;
+
+    if (attachedFile) {
+      if (attachedFile.kind === "image") {
+        imageData = attachedFile.content;
+      } else {
+        msgContent = `[Document: ${attachedFile.name}]\n\`\`\`\n${attachedFile.content}\n\`\`\`\n\n**Question:** ${msgContent}`;
+      }
+    }
+
+    const userMsg: Message = {
+      role: "user",
+      content: msgContent,
+      ...(attachedFile ? { attachmentName: attachedFile.name } : {}),
+    };
+    const newMessages = [...messages, userMsg];
     setMessages(newMessages);
+    persist.messages = newMessages;
     setInput("");
+    setAttachedFile(null);
     setIsLoading(true);
+
     try {
-      const content = await callAiChat(newMessages, isTopperMode);
-      setMessages([...newMessages, { role: "assistant", content }]);
+      const res = await fetch(`${BASE}/api/ai/chat`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          messages: newMessages.map(m => ({ role: m.role, content: m.content })),
+          mode: isTopperMode ? "topper" : "standard",
+          ...(imageData ? { image_data: imageData } : {}),
+        }),
+      });
+      if (!res.ok) throw new Error("Request failed");
+      const data = await res.json();
+      const aiMsg: Message = { role: "assistant", content: data.content as string };
+      const updatedMessages = [...newMessages, aiMsg];
+      setMessages(updatedMessages);
+      persist.messages = updatedMessages;
+      autoSaveChat(updatedMessages); // background save to history
     } catch {
       toast.error("Failed to get response. Please try again.");
     } finally {
@@ -185,54 +292,50 @@ export default function Chat() {
     }
   };
 
-  const handleSave = async () => {
+  const handleManualSave = async () => {
     if (messages.length === 0) { toast.error("No messages to save"); return; }
-    try {
-      await saveChat.mutateAsync({
-        data: { title: messages[0].content.substring(0, 60) + (messages[0].content.length > 60 ? "..." : ""), messages }
-      });
-      toast.success("Chat saved to history!");
-    } catch {
-      toast.error("Failed to save chat");
+    await autoSaveChat(messages);
+    setSavedThisSession(true);
+    toast.success("Chat saved to history!");
+  };
+
+  const handleNew = () => {
+    persist.messages = [];
+    persist.sessionChatId = null;
+    persist.loadedSessionId = null;
+    setMessages([]);
+    setInput("");
+    setAttachedFile(null);
+    setSavedThisSession(false);
+    // Clear URL param if present
+    if (window.location.search.includes("sessionId")) {
+      window.history.replaceState({}, "", window.location.pathname);
     }
   };
 
-  const handleVisualize = async (msgIndex: number) => {
-    const msg = messages[msgIndex];
-    if (!msg || msg.role !== "assistant") return;
-    setVisualLoading(msgIndex);
-    try {
-      const data = await callVisualize(msg.content.slice(0, 1500));
-      setVisualData(data);
-    } catch {
-      toast.error("Failed to generate visual. Try again.");
-    } finally {
-      setVisualLoading(null);
-    }
+  const handleToggleTopper = () => {
+    const newMode = !isTopperMode;
+    setIsTopperMode(newMode);
+    persist.isTopperMode = newMode;
+    toast.info(newMode ? "🎓 Topper Mode — ultra-detailed answers activated!" : "Standard mode activated");
   };
 
-  const handleVisualFromSelection = async () => {
-    const selected = window.getSelection()?.toString().trim();
-    if (!selected || selected.length < 10) {
-      const lastAi = [...messages].reverse().find(m => m.role === "assistant");
-      if (lastAi) {
-        setVisualLoading(-1);
-        try {
-          const data = await callVisualize(lastAi.content.slice(0, 1500));
-          setVisualData(data);
-        } catch {
-          toast.error("Failed to generate visual");
-        } finally {
-          setVisualLoading(null);
-        }
-      } else {
-        toast.info("Select some text in the chat, or ask a question first");
+  const handleVisualize = async (msgIdx: number | "selection") => {
+    let text = "";
+    if (msgIdx === "selection") {
+      text = window.getSelection()?.toString().trim() || "";
+      if (!text) {
+        const lastAi = [...messages].reverse().find(m => m.role === "assistant");
+        text = lastAi?.content.slice(0, 1500) || "";
+        if (!text) { toast.info("Select text in any answer first, or ask a question"); return; }
       }
-      return;
+      setVisualLoading("global");
+    } else {
+      text = messages[msgIdx]?.content.slice(0, 1500) || "";
+      setVisualLoading(msgIdx);
     }
-    setVisualLoading(-1);
     try {
-      const data = await callVisualize(selected);
+      const data = await callVisualize(text);
       setVisualData(data);
     } catch {
       toast.error("Failed to generate visual");
@@ -241,67 +344,88 @@ export default function Chat() {
     }
   };
 
+  const copyMessage = (content: string) => {
+    navigator.clipboard.writeText(content);
+    toast.success("Copied!");
+  };
+
   return (
     <DashboardLayout>
       {visualData && <VisualModal data={visualData} onClose={() => setVisualData(null)} />}
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/*,.pdf,.txt,.doc,.docx,.md"
+        className="hidden"
+        onChange={handleFileSelect}
+      />
 
       <div className="flex flex-col h-[calc(100vh-5rem)] md:h-[calc(100vh-4rem)]">
         {/* Header */}
         <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
           <h1 className="text-xl font-bold text-slate-900 flex items-center gap-2">
-            <Bot className="w-5 h-5 text-primary" />
+            <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center">
+              <Bot className="w-4 h-4 text-white" />
+            </div>
             Bishal's Assistant
           </h1>
           <div className="flex flex-wrap gap-2">
             <Button
               variant={isTopperMode ? "default" : "outline"}
               size="sm"
-              onClick={() => { setIsTopperMode(!isTopperMode); toast.info(isTopperMode ? "Standard mode" : "Topper mode — ultra detailed answers!"); }}
-              className={isTopperMode ? "bg-amber-500 hover:bg-amber-600 text-white" : "text-slate-600"}
+              onClick={handleToggleTopper}
+              className={isTopperMode ? "bg-amber-500 hover:bg-amber-600 text-white border-0" : "text-slate-600"}
             >
-              <GraduationCap className="w-4 h-4 mr-1.5" />
+              <GraduationCap className="w-4 h-4 mr-1" />
               {isTopperMode ? "Topper ON" : "Topper Style"}
             </Button>
             <Button
               variant="outline"
               size="sm"
-              onClick={handleVisualFromSelection}
+              onClick={() => handleVisualize("selection")}
               disabled={visualLoading !== null}
               className="text-purple-700 border-purple-200 hover:bg-purple-50"
             >
-              {visualLoading === -1 ? <Loader2 className="w-4 h-4 mr-1.5 animate-spin" /> : <ImageIcon className="w-4 h-4 mr-1.5" />}
-              Visual Generation
+              {visualLoading === "global" ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <ImageIcon className="w-4 h-4 mr-1" />}
+              Visual
             </Button>
-            <Button variant="outline" size="sm" onClick={() => setMessages([])} className="text-slate-600">
-              <Plus className="w-4 h-4 mr-1.5" /> New
+            <Button variant="outline" size="sm" onClick={handleNew} className="text-slate-600 gap-1">
+              <Plus className="w-4 h-4" /> New
             </Button>
-            <Button variant="outline" size="sm" onClick={handleSave} disabled={messages.length === 0 || saveChat.isPending} className="text-slate-600">
-              {saveChat.isPending ? <Loader2 className="w-4 h-4 mr-1.5 animate-spin" /> : <Save className="w-4 h-4 mr-1.5" />}
-              Save
+            <Button
+              variant="outline" size="sm"
+              onClick={handleManualSave}
+              disabled={messages.length === 0 || savedThisSession}
+              className="text-slate-600 gap-1"
+            >
+              {savedThisSession ? <Check className="w-4 h-4 text-green-500" /> : <Save className="w-4 h-4" />}
+              {savedThisSession ? "Saved" : "Save"}
             </Button>
           </div>
         </div>
 
         {isTopperMode && (
-          <div className="mb-2 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 text-xs text-amber-800 font-medium flex items-center gap-2">
+          <div className="mb-2 flex items-center gap-2 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 text-xs text-amber-800 font-medium">
             <GraduationCap className="w-4 h-4 shrink-0" />
-            Topper Mode — Giving extremely detailed, exam-ready answers with all key points highlighted.
+            <span><strong>Topper Mode:</strong> Ultra-detailed, exam-ready answers with all subtopics, formulas, and examples.</span>
           </div>
         )}
 
         {/* Chat area */}
-        <Card className="flex-1 flex flex-col overflow-hidden border-slate-200 min-h-0">
-          <CardContent className="flex-1 overflow-y-auto p-3 md:p-5 space-y-4" style={{ overscrollBehavior: "contain" }}>
+        <Card className="flex-1 flex flex-col overflow-hidden border-slate-200 min-h-0 shadow-sm">
+          <CardContent className="flex-1 overflow-y-auto p-3 md:p-5 space-y-5" style={{ overscrollBehavior: "contain" }}>
             {messages.length === 0 ? (
-              <div className="h-full flex flex-col items-center justify-center text-center text-slate-400 py-12">
-                <div className="w-16 h-16 rounded-full bg-blue-50 flex items-center justify-center text-primary mb-4">
-                  <Bot className="w-8 h-8" />
+              <div className="h-full flex flex-col items-center justify-center text-center py-10">
+                <div className="w-20 h-20 rounded-full bg-gradient-to-br from-blue-400 to-primary flex items-center justify-center mb-5 shadow-lg">
+                  <Bot className="w-10 h-10 text-white" />
                 </div>
-                <h2 className="text-lg font-semibold text-slate-700 mb-2">Ask Bishal's Assistant anything</h2>
-                <p className="text-sm max-w-xs">Explain concepts, solve problems, generate examples, or quiz me on any subject.</p>
-                <div className="mt-5 grid grid-cols-1 sm:grid-cols-2 gap-2 max-w-sm w-full">
-                  {["Explain Newton's Laws of Motion", "What is Photosynthesis?", "How does Recursion work?", "Explain the Water Cycle"].map(s => (
-                    <button key={s} onClick={() => setInput(s)} className="text-left text-xs px-3 py-2 rounded-lg border border-slate-200 hover:bg-blue-50 hover:border-primary transition-colors text-slate-600">
+                <h2 className="text-xl font-bold text-slate-800 mb-2">Bishal's AI Assistant</h2>
+                <p className="text-sm text-slate-500 max-w-sm mb-2">Ask anything — explanations, translations, problem solving, analysis.</p>
+                <p className="text-xs text-slate-400 mb-6">Powered by Groq AI • Created by Bishal</p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-w-md w-full">
+                  {STARTERS.map(s => (
+                    <button key={s} onClick={() => setInput(s)}
+                      className="text-left text-xs px-3 py-2.5 rounded-xl border border-slate-200 hover:bg-blue-50 hover:border-primary transition-colors text-slate-600 hover:text-primary font-medium">
                       {s}
                     </button>
                   ))}
@@ -312,36 +436,49 @@ export default function Chat() {
                 {messages.map((msg, idx) => (
                   <div key={idx} className={`flex gap-3 ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
                     {msg.role === "assistant" && (
-                      <div className="w-8 h-8 rounded-full bg-primary shrink-0 flex items-center justify-center text-white mt-1">
+                      <div className="w-8 h-8 rounded-full bg-primary shrink-0 flex items-center justify-center text-white mt-0.5 shadow">
                         <Bot className="w-4 h-4" />
                       </div>
                     )}
-                    <div className={`max-w-[85%] md:max-w-[80%] rounded-2xl ${msg.role === "user" ? "bg-primary text-white rounded-tr-sm px-4 py-3" : "bg-slate-50 border border-slate-200 text-slate-800 rounded-tl-sm px-4 py-3"}`}>
+                    <div className={`max-w-[88%] md:max-w-[80%] ${msg.role === "user"
+                      ? "bg-primary text-white rounded-2xl rounded-tr-sm px-4 py-3"
+                      : "bg-white border border-slate-200 text-slate-800 rounded-2xl rounded-tl-sm px-4 py-3 shadow-sm"
+                    }`}>
                       {msg.role === "assistant" ? (
                         <>
-                          <div className="prose prose-sm max-w-none dark:prose-invert prose-strong:text-primary prose-strong:font-bold prose-h2:text-slate-800 prose-h2:text-base prose-h3:text-slate-700 prose-h3:text-sm prose-li:text-slate-700">
+                          <div className="prose prose-sm max-w-none prose-strong:text-primary prose-strong:font-bold prose-h2:text-slate-800 prose-h2:text-sm prose-h2:font-bold prose-h3:text-slate-700 prose-h3:text-xs prose-li:text-slate-700 prose-p:text-slate-700 prose-p:leading-relaxed prose-code:bg-slate-100 prose-code:px-1 prose-code:rounded">
                             <ReactMarkdown remarkPlugins={[remarkGfm]}>{msg.content}</ReactMarkdown>
                           </div>
-                          <div className="mt-3 pt-2 border-t border-slate-200 flex flex-wrap gap-2">
-                            <button onClick={() => { navigator.clipboard.writeText(msg.content); toast.success("Copied!"); }} className="flex items-center gap-1 text-[11px] text-slate-400 hover:text-slate-600 transition-colors">
+                          <div className="mt-3 pt-2 border-t border-slate-100 flex flex-wrap gap-3">
+                            <button onClick={() => copyMessage(msg.content)} className="flex items-center gap-1 text-[11px] text-slate-400 hover:text-slate-600 transition-colors">
                               <Copy className="w-3 h-3" /> Copy
                             </button>
                             <button
                               onClick={() => handleVisualize(idx)}
                               disabled={visualLoading !== null}
-                              className="flex items-center gap-1 text-[11px] text-purple-500 hover:text-purple-700 transition-colors disabled:opacity-50"
+                              className="flex items-center gap-1 text-[11px] text-purple-500 hover:text-purple-700 transition-colors disabled:opacity-40"
                             >
                               {visualLoading === idx ? <Loader2 className="w-3 h-3 animate-spin" /> : <Wand2 className="w-3 h-3" />}
-                              Visualize this
+                              Visualize
                             </button>
                           </div>
                         </>
                       ) : (
-                        <div className="whitespace-pre-wrap text-sm">{msg.content}</div>
+                        <div>
+                          {msg.attachmentName && (
+                            <div className="flex items-center gap-1.5 mb-2 text-[11px] text-white/80 bg-white/10 rounded-lg px-2 py-1 w-fit">
+                              <Paperclip className="w-3 h-3" />
+                              {msg.attachmentName}
+                            </div>
+                          )}
+                          <div className="whitespace-pre-wrap text-sm leading-relaxed">
+                            {msg.content.replace(/\[Document:[^\]]*\]\n```[\s\S]*?```\n\n\*\*Question:\*\* /g, "")}
+                          </div>
+                        </div>
                       )}
                     </div>
                     {msg.role === "user" && (
-                      <div className="w-8 h-8 rounded-full bg-slate-200 shrink-0 flex items-center justify-center text-slate-600 mt-1">
+                      <div className="w-8 h-8 rounded-full bg-slate-200 shrink-0 flex items-center justify-center text-slate-600 mt-0.5">
                         <User className="w-4 h-4" />
                       </div>
                     )}
@@ -349,12 +486,16 @@ export default function Chat() {
                 ))}
                 {isLoading && (
                   <div className="flex gap-3 justify-start">
-                    <div className="w-8 h-8 rounded-full bg-primary shrink-0 flex items-center justify-center text-white mt-1">
+                    <div className="w-8 h-8 rounded-full bg-primary shrink-0 flex items-center justify-center text-white mt-0.5 shadow">
                       <Bot className="w-4 h-4" />
                     </div>
-                    <div className="bg-slate-50 border border-slate-200 rounded-2xl rounded-tl-sm px-4 py-3 flex items-center gap-2">
-                      <Loader2 className="w-4 h-4 animate-spin text-primary" />
-                      <span className="text-sm text-slate-500">{isTopperMode ? "Preparing topper-level answer..." : "Thinking..."}</span>
+                    <div className="bg-white border border-slate-200 rounded-2xl rounded-tl-sm px-4 py-3 shadow-sm flex items-center gap-2">
+                      <div className="flex gap-1">
+                        <span className="w-2 h-2 bg-primary rounded-full animate-bounce" style={{ animationDelay: "0ms" }} />
+                        <span className="w-2 h-2 bg-primary/70 rounded-full animate-bounce" style={{ animationDelay: "150ms" }} />
+                        <span className="w-2 h-2 bg-primary/40 rounded-full animate-bounce" style={{ animationDelay: "300ms" }} />
+                      </div>
+                      <span className="text-xs text-slate-400">{isTopperMode ? "Preparing topper answer..." : "Thinking..."}</span>
                     </div>
                   </div>
                 )}
@@ -364,26 +505,65 @@ export default function Chat() {
           </CardContent>
 
           {/* Input area */}
-          <div className="p-3 border-t border-slate-100 bg-white">
-            <div className="relative flex gap-2">
+          <div className="border-t border-slate-100 bg-white p-3 space-y-2">
+            {/* File attachment preview */}
+            {attachedFile && (
+              <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-lg px-3 py-2">
+                {attachedFile.kind === "image" ? (
+                  <img src={attachedFile.thumbnail} alt="" className="w-8 h-8 rounded object-cover border border-slate-200" />
+                ) : (
+                  <div className="w-8 h-8 rounded bg-blue-100 flex items-center justify-center shrink-0">
+                    <FileText className="w-4 h-4 text-blue-600" />
+                  </div>
+                )}
+                <span className="text-xs text-slate-600 font-medium flex-1 truncate">{attachedFile.name}</span>
+                <button onClick={() => setAttachedFile(null)} className="text-slate-400 hover:text-red-500 transition-colors ml-auto">
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+            )}
+
+            <div className="flex gap-2 items-end">
+              {/* Upload button */}
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                className="w-9 h-9 shrink-0 rounded-lg border border-slate-200 flex items-center justify-center text-slate-400 hover:text-primary hover:border-primary transition-colors bg-white"
+                title="Attach image, PDF, or document"
+              >
+                <Paperclip className="w-4 h-4" />
+              </button>
+
               <Textarea
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
-                onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSend(); } }}
-                placeholder={isTopperMode ? "Ask anything — I'll give a complete topper-level answer..." : "Ask your study question... (Enter to send, Shift+Enter for new line)"}
-                className="flex-1 resize-none min-h-[52px] max-h-28 text-sm bg-slate-50 border-slate-200 focus-visible:ring-primary pr-2"
-                rows={2}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSend(); }
+                }}
+                placeholder={
+                  attachedFile?.kind === "image"
+                    ? "What do you want to know about this image?"
+                    : isTopperMode
+                    ? "Ask anything — I'll give a complete topper-level answer..."
+                    : "Ask your question... (Enter to send, Shift+Enter for new line)"
+                }
+                className="flex-1 resize-none min-h-[42px] max-h-32 text-sm bg-slate-50 border-slate-200 focus-visible:ring-primary"
+                rows={1}
               />
               <Button
                 size="icon"
-                className="h-[52px] w-10 shrink-0 rounded-xl self-end"
+                className="h-9 w-9 shrink-0 rounded-lg self-end"
                 onClick={handleSend}
                 disabled={!input.trim() || isLoading}
               >
                 <Send className="w-4 h-4" />
               </Button>
             </div>
-            <p className="text-[10px] text-slate-400 mt-1 text-center">Select text in any answer → click "Visual Generation" to get a diagram</p>
+            <div className="flex justify-between items-center px-0.5">
+              <p className="text-[10px] text-slate-400">📎 Attach images or documents • Select text → Visual to generate diagram</p>
+              {messages.length > 0 && !savedThisSession && (
+                <p className="text-[10px] text-green-500">✓ Auto-saved to history</p>
+              )}
+            </div>
           </div>
         </Card>
       </div>

@@ -9,7 +9,57 @@ import {
 } from "@workspace/api-zod";
 import { logger } from "../lib/logger";
 
+const VISION_MODEL = "llama-3.2-11b-vision-preview";
+
 const router: IRouter = Router();
+
+function buildSystemPrompt(mode: string): string {
+  const base = `You are Bishal's AI Assistant inside ScorpStudy — a smart, friendly, and highly knowledgeable tutor for college students.
+
+IDENTITY (CRITICAL):
+- You were created by Bishal.
+- WHENEVER anyone asks "who made you?", "who created you?", "who built you?", "who is your inventor?", "who is your creator?", "aapko kisne banaya?", "tapailai kasle banayo?", or ANY similar question about your creator/inventor/maker → ALWAYS answer: "I was created by Bishal! 🎯 You can learn more about him at his personal website: www.bishalbishwokarma.in.net"
+- NEVER claim you were made by Meta, Groq, OpenAI, or any other company when asked about YOUR creator.
+
+TRANSLATION (CRITICAL — BE ACCURATE):
+- When asked to translate ANY text (Nepali→English, English→Hindi, Hindi→Nepali, etc.), provide PRECISE and ACCURATE translations.
+- For Nepali (Devanagari script: क ख ग घ ङ...): translate each word correctly using proper Nepali grammar and vocabulary.
+- For romanized/transliterated Nepali (e.g. "tapai", "timro", "kasto chha"): correctly identify as Nepali and translate accurately.
+- Always specify: "Translating [source language] → [target language]:" before the translation.
+- Give both literal and natural translations when they differ.
+- If a word has no direct equivalent, explain it briefly.
+
+STUDENT UNDERSTANDING:
+- Adapt to the student's level based on how they phrase questions.
+- Simple questions → concise, clear, direct answers.
+- Complex questions → detailed, structured, with step-by-step breakdown.
+- Always use **bold** for key terms, formulas, and critical concepts.
+- Use ## headers to organize long answers. Include real-world examples.
+- Encourage and motivate students.
+
+FORMATTING: Use markdown. **Bold** every important term. Use numbered steps for processes. Use tables for comparisons.`;
+
+  if (mode === "topper") {
+    return base + `
+
+TOPPER MODE — ULTRA DETAILED ANSWERS:
+Give a comprehensive, exam-ready answer covering ALL of the following:
+## 1. Definition & Overview
+## 2. Detailed Explanation (step-by-step mechanism/theory)
+## 3. Key Formulas / Models (if applicable)
+## 4. Real-World Applications (minimum 3 examples)
+## 5. Common Mistakes & Misconceptions
+## 6. Memory Trick / Mnemonic
+## 7. Related Concepts
+## 8. Possible Exam Questions on this Topic
+
+End EVERY answer with:
+**📋 Quick Revision Summary:**
+• [5-7 bullet points covering the most important points]`;
+  }
+
+  return base;
+}
 
 router.post("/ai/chat", async (req, res): Promise<void> => {
   const parsed = AiChatBody.safeParse(req.body);
@@ -18,21 +68,48 @@ router.post("/ai/chat", async (req, res): Promise<void> => {
     return;
   }
 
-  const messages = parsed.data.messages.map((m) => ({
-    role: m.role as "user" | "assistant" | "system",
-    content: m.content,
-  }));
+  const mode = typeof req.body?.mode === "string" ? req.body.mode : "standard";
+  const imageData: unknown = req.body?.image_data;
+  const hasImage = typeof imageData === "string" && imageData.startsWith("data:image");
 
   const systemMessage = {
     role: "system" as const,
-    content:
-      "You are ScorpStudy AI, an expert study tutor for college students. You explain concepts clearly, help students understand difficult topics, provide examples, and guide learning. Be encouraging, accurate, and educational. Format your responses with markdown when helpful.",
+    content: buildSystemPrompt(mode),
   };
 
+  const messages = parsed.data.messages
+    .filter((m) => m.role !== "system")
+    .map((m) => ({
+      role: m.role as "user" | "assistant",
+      content: m.content,
+    }));
+
+  let apiMessages: Parameters<typeof groq.chat.completions.create>[0]["messages"];
+
+  if (hasImage && messages.length > 0) {
+    const lastMsg = messages[messages.length - 1];
+    const withoutLast = messages.slice(0, -1);
+    apiMessages = [
+      systemMessage,
+      ...withoutLast,
+      {
+        role: "user" as const,
+        content: [
+          { type: "image_url" as const, image_url: { url: imageData as string } },
+          { type: "text" as const, text: lastMsg.content || "What is in this image? Explain it in an educational context." },
+        ],
+      },
+    ];
+  } else {
+    apiMessages = [systemMessage, ...messages];
+  }
+
+  const model = hasImage ? VISION_MODEL : GROQ_MODEL;
+
   const completion = await groq.chat.completions.create({
-    model: GROQ_MODEL,
-    messages: [systemMessage, ...messages],
-    max_tokens: 2048,
+    model,
+    messages: apiMessages,
+    max_tokens: mode === "topper" ? 4096 : 2048,
   });
 
   const content = completion.choices[0]?.message?.content ?? "I couldn't generate a response. Please try again.";
@@ -86,6 +163,57 @@ Respond in this exact JSON format:
   });
 });
 
+interface QuizQuestion {
+  question: string;
+  options: string[];
+  correctAnswer: string;
+  explanation: string;
+}
+
+async function generateQuizChunk(
+  topic: string,
+  count: number,
+  difficulty: string,
+  questionType: string,
+  chunkNum: number,
+  totalChunks: number
+): Promise<QuizQuestion[]> {
+  const subtopicHint =
+    totalChunks > 1
+      ? `This is batch ${chunkNum} of ${totalChunks}. Focus on a DIFFERENT angle/subtopic than typical questions. Ensure uniqueness.`
+      : "";
+
+  const prompt = `Generate EXACTLY ${count} ${difficulty} difficulty ${questionType} quiz questions about: ${topic}
+
+${subtopicHint}
+
+CRITICAL RULES:
+- You MUST generate EXACTLY ${count} questions. Not more, not less.
+- Keep explanations concise (under 20 words each) to save space.
+- All questions must be clearly worded and educationally accurate.
+
+Output ONLY this JSON (no extra text):
+{"questions":[{"question":"...","options":["A) ...","B) ...","C) ...","D) ..."],"correctAnswer":"A) ...","explanation":"..."}]}
+
+Generate ALL ${count} questions now:`;
+
+  const completion = await groq.chat.completions.create({
+    model: GROQ_MODEL,
+    messages: [{ role: "user", content: prompt }],
+    max_tokens: Math.min(8192, count * 150 + 200),
+    response_format: { type: "json_object" },
+  });
+
+  const raw = completion.choices[0]?.message?.content ?? "{}";
+  try {
+    const result = JSON.parse(raw);
+    return Array.isArray(result.questions) ? result.questions : [];
+  } catch {
+    logger.error({ raw }, "Failed to parse quiz chunk");
+    return [];
+  }
+}
+
 router.post("/ai/quiz", async (req, res): Promise<void> => {
   const parsed = AiGenerateQuizBody.safeParse(req.body);
   if (!parsed.success) {
@@ -93,48 +221,32 @@ router.post("/ai/quiz", async (req, res): Promise<void> => {
     return;
   }
 
-  const { topic, count, difficulty, type } = parsed.data;
+  const { difficulty, type } = parsed.data;
+  let { topic, count } = parsed.data;
+
+  topic = topic.replace(/\[variation-seed:[^\]]+\]/g, "").trim();
+  count = Math.max(1, Math.min(100, count));
 
   const questionType =
     type === "multiple-choice" || type === "Multiple Choice"
-      ? "multiple choice (4 options)"
-      : type === "true-false" || type === "True/False"
-      ? "true/false"
+      ? "multiple choice (4 options A/B/C/D)"
+      : type === "true-false" || type === "True/False" || type === "True-False"
+      ? "true/false (options: True or False only)"
       : "mixed (some multiple choice with 4 options, some true/false)";
 
-  const prompt = `Generate ${count} ${difficulty} difficulty ${questionType} quiz questions about: ${topic}
+  const CHUNK_SIZE = 30;
+  const allQuestions: QuizQuestion[] = [];
+  const totalChunks = Math.ceil(count / CHUNK_SIZE);
 
-Respond in this exact JSON format:
-{
-  "questions": [
-    {
-      "question": "...",
-      "options": ["A) ...", "B) ...", "C) ...", "D) ..."],
-      "correctAnswer": "A) ...",
-      "explanation": "..."
-    }
-  ]
-}
-
-For true/false questions, options should be ["True", "False"] and correctAnswer should be "True" or "False".`;
-
-  const completion = await groq.chat.completions.create({
-    model: GROQ_MODEL,
-    messages: [{ role: "user", content: prompt }],
-    max_tokens: 3000,
-    response_format: { type: "json_object" },
-  });
-
-  const raw = completion.choices[0]?.message?.content ?? "{}";
-  let result: { questions: unknown[] };
-  try {
-    result = JSON.parse(raw);
-  } catch {
-    logger.error({ raw }, "Failed to parse quiz response");
-    result = { questions: [] };
+  for (let i = 0; i < totalChunks; i++) {
+    const remaining = count - allQuestions.length;
+    if (remaining <= 0) break;
+    const chunkCount = Math.min(CHUNK_SIZE, remaining);
+    const questions = await generateQuizChunk(topic, chunkCount, difficulty, questionType, i + 1, totalChunks);
+    allQuestions.push(...questions);
   }
 
-  res.json({ questions: Array.isArray(result.questions) ? result.questions : [] });
+  res.json({ questions: allQuestions });
 });
 
 router.post("/ai/flashcards", async (req, res): Promise<void> => {
@@ -200,6 +312,42 @@ router.post("/ai/enhance-notes", async (req, res): Promise<void> => {
 
   const enhanced = completion.choices[0]?.message?.content ?? content;
   res.json({ content: enhanced });
+});
+
+router.post("/ai/notes-quiz", async (req, res): Promise<void> => {
+  const rawContent: unknown = req.body?.content;
+  if (typeof rawContent !== "string" || rawContent.trim().length === 0) {
+    res.status(400).json({ error: "content is required" });
+    return;
+  }
+  const content = rawContent.trim().slice(0, 4000);
+
+  const prompt = `Based on the following notes, generate 5 quiz questions to help the student test their understanding.
+
+Notes:
+"""
+${content}
+"""
+
+Respond in JSON:
+{"questions":[{"question":"...","options":["A) ...","B) ...","C) ...","D) ..."],"correctAnswer":"A) ...","explanation":"..."}]}`;
+
+  const completion = await groq.chat.completions.create({
+    model: GROQ_MODEL,
+    messages: [{ role: "user", content: prompt }],
+    max_tokens: 2000,
+    response_format: { type: "json_object" },
+  });
+
+  const raw = completion.choices[0]?.message?.content ?? "{}";
+  let result: { questions: unknown[] };
+  try {
+    result = JSON.parse(raw);
+  } catch {
+    result = { questions: [] };
+  }
+
+  res.json({ questions: Array.isArray(result.questions) ? result.questions : [] });
 });
 
 router.post("/ai/visualize", async (req, res): Promise<void> => {
