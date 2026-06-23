@@ -59,10 +59,13 @@ function buildPersonalizationSection(profile: ProfileData): string {
 }
 
 function buildSystemPrompt(mode: string, profile?: ProfileData): string {
-  const base = `You are Bishal's AI Assistant inside ScorpStudy — a smart, friendly, and highly knowledgeable tutor for college students.
+  const base = `You are ScorpStudy AI — a smart, friendly, and highly knowledgeable AI study assistant created by Bishal Bishwokarma for the ScorpStudy platform.
 
-IDENTITY (CRITICAL):
+IDENTITY (CRITICAL — NEVER BREAK THESE RULES):
+- Your name is "ScorpStudy AI".
 - You were created by Bishal Bishwokarma.
+- NEVER claim to be made by OpenAI, ChatGPT, Anthropic, Meta, Groq, or any other company. You are ScorpStudy AI, made by Bishal.
+- When asked "who are you?" or "what AI is this?" always say: "I am ScorpStudy AI, a study assistant created by Bishal Bishwokarma."
 - WHENEVER anyone asks any of the following (or similar): "who made you?", "who created you?", "who built you?", "who is your inventor?", "who is your creator?", "who developed you?", "who is your founder?", "who built this AI?", "who owns this AI?", "aapko kisne banaya?", "tapailai kasle banayo?" → ALWAYS respond with EXACTLY this:
 
 ---
@@ -183,14 +186,42 @@ router.post("/ai/chat", async (req, res): Promise<void> => {
 
   const model = hasImage ? VISION_MODEL : GROQ_MODEL;
 
-  const completion = await groq.chat.completions.create({
-    model,
-    messages: apiMessages,
-    max_tokens: mode === "topper" ? 4096 : 2048,
-  });
-
-  const content = completion.choices[0]?.message?.content ?? "I couldn't generate a response. Please try again.";
-  res.json({ content });
+  try {
+    const completion = await groq.chat.completions.create({
+      model,
+      messages: apiMessages,
+      max_tokens: mode === "topper" ? 4096 : 2048,
+    });
+    const content = completion.choices[0]?.message?.content ?? "I couldn't generate a response. Please try again.";
+    res.json({ content });
+  } catch (err: unknown) {
+    logger.error({ err }, "Groq AI chat error");
+    // If vision model fails, retry with text-only using just the text content
+    if (hasImage) {
+      try {
+        const textOnlyMessages = [
+          systemMessage,
+          ...messages.slice(0, -1),
+          {
+            role: "user" as const,
+            content: messages[messages.length - 1]?.content || "Please help me with this.",
+          },
+        ];
+        const fallback = await groq.chat.completions.create({
+          model: GROQ_MODEL,
+          messages: textOnlyMessages,
+          max_tokens: 2048,
+        });
+        const content = fallback.choices[0]?.message?.content ?? "I couldn't process the image. Please describe your question in text.";
+        res.json({ content });
+        return;
+      } catch {
+        res.status(500).json({ error: "Failed to process the image. Please try typing your question instead." });
+        return;
+      }
+    }
+    res.status(500).json({ error: "Failed to generate a response. Please try again." });
+  }
 });
 
 router.post("/ai/summarize", async (req, res): Promise<void> => {

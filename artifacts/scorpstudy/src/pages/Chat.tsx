@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
+import { useUserProfile } from "@/contexts/UserProfileContext";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent } from "@/components/ui/card";
@@ -204,6 +205,7 @@ const STARTERS = [
 ];
 
 export default function Chat() {
+  const { profile } = useUserProfile();
   const [messages, setMessages] = useState<Message[]>(persist.messages);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -305,6 +307,7 @@ export default function Chat() {
           messages: newMessages.map(m => ({ role: m.role, content: m.content })),
           mode: isTopperMode ? "topper" : "standard",
           ...(imageData ? { image_data: imageData } : {}),
+          ...(profile ? { userProfile: profile } : {}),
         }),
       });
       if (!res.ok) throw new Error("Request failed");
@@ -450,7 +453,7 @@ export default function Chat() {
                 </div>
                 <h2 className="text-xl font-bold text-slate-800 mb-2">Bishal's AI Assistant</h2>
                 <p className="text-sm text-slate-500 max-w-sm mb-2">Ask anything — explanations, translations, problem solving, analysis.</p>
-                <p className="text-xs text-slate-400 mb-6">Powered by Groq AI • Created by Bishal</p>
+                <p className="text-xs text-slate-400 mb-6">ScorpStudy AI • Created by Bishal</p>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-w-md w-full">
                   {STARTERS.map(s => (
                     <button key={s} onClick={() => setInput(s)}

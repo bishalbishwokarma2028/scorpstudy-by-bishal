@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import type { UserProfileData } from "@/contexts/UserProfileContext";
-import { Check, ChevronRight, ChevronLeft, Search, Globe, GraduationCap, BookOpen, Sparkles, Target, MessageSquare } from "lucide-react";
+import { Check, ChevronRight, ChevronLeft, Search, Globe, GraduationCap, Sparkles } from "lucide-react";
 
 const STUDY_LEVELS = [
   { value: "SEE",            label: "SEE",            emoji: "🏫", desc: "Secondary Education Exam" },
@@ -48,7 +48,6 @@ interface Props {
 
 export default function Onboarding({ onComplete }: Props) {
   const [step, setStep] = useState(1);
-  const [direction, setDirection] = useState<"forward" | "back">("forward");
   const [firstName, setFirstName] = useState("");
   const [nickname, setNickname] = useState("");
   const [studyLevel, setStudyLevel] = useState("");
@@ -75,14 +74,24 @@ export default function Onboarding({ onComplete }: Props) {
   const next = () => {
     if (!canContinue()) return;
     if (step === TOTAL_STEPS) { handleComplete(); return; }
-    setDirection("forward");
     setStep(s => s + 1);
   };
 
   const back = () => {
     if (step === 1) return;
-    setDirection("back");
     setStep(s => s - 1);
+  };
+
+  const handleSkip = () => {
+    onComplete({
+      firstName: firstName.trim() || "Student",
+      nickname: nickname.trim() || undefined,
+      studyLevel: studyLevel || "Other",
+      learningGoal: learningGoal || "General Learning",
+      preferredLanguage: language || "English",
+      interactionStyle: interactionStyle || "Friendly Tutor",
+      onboardingCompleted: true,
+    });
   };
 
   const handleComplete = () => {
@@ -99,66 +108,68 @@ export default function Onboarding({ onComplete }: Props) {
   };
 
   return (
-    <div className="fixed inset-0 z-[100] bg-gradient-to-br from-violet-600 via-purple-700 to-indigo-800 flex items-center justify-center p-4">
-      {/* Background pattern */}
-      <div className="absolute inset-0 opacity-10 pointer-events-none select-none overflow-hidden">
-        <div className="absolute top-10 left-10 w-64 h-64 rounded-full bg-white blur-3xl" />
-        <div className="absolute bottom-10 right-10 w-96 h-96 rounded-full bg-white blur-3xl" />
-      </div>
-
+    <div className="fixed inset-0 z-[100] bg-gradient-to-br from-blue-50 via-white to-indigo-50 flex items-center justify-center p-4">
       <div className="relative w-full max-w-lg">
         {/* Card */}
-        <div className="bg-white rounded-3xl shadow-2xl overflow-hidden">
-          {/* Top gradient bar */}
-          <div className="h-1.5 bg-gradient-to-r from-violet-500 via-purple-500 to-indigo-500" />
+        <div className="bg-white rounded-3xl shadow-xl border border-slate-100 overflow-hidden">
+          {/* Top accent bar */}
+          <div className="h-1 bg-gradient-to-r from-violet-500 via-blue-500 to-indigo-500" />
 
           <div className="p-6 md:p-8">
-            {/* Logo + title */}
-            <div className="flex items-center gap-3 mb-6">
-              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-violet-500 to-indigo-500 flex items-center justify-center shadow-md">
-                <Sparkles className="w-5 h-5 text-white" />
+            {/* Logo + title + skip */}
+            <div className="flex items-center justify-between mb-6">
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-violet-500 to-indigo-500 flex items-center justify-center shadow-sm">
+                  <Sparkles className="w-4.5 h-4.5 text-white" />
+                </div>
+                <div>
+                  <p className="text-sm font-bold text-violet-600 leading-none">ScorpStudy</p>
+                  <p className="text-[10px] text-slate-400 leading-tight">by Bishal</p>
+                </div>
               </div>
-              <div>
-                <p className="text-sm font-bold text-violet-600">ScorpStudy</p>
-                <p className="text-[10px] text-slate-400">by Bishal</p>
-              </div>
+              <button
+                onClick={handleSkip}
+                className="text-xs text-slate-400 hover:text-slate-600 font-medium transition-colors px-3 py-1.5 rounded-lg hover:bg-slate-100"
+              >
+                Skip →
+              </button>
             </div>
 
             {/* Step indicators */}
             {step > 1 && (
-              <div className="flex items-center gap-2 mb-6">
+              <div className="flex items-center gap-1.5 mb-6">
                 {Array.from({ length: TOTAL_STEPS }, (_, i) => i + 1).map(s => (
-                  <div key={s} className="flex items-center gap-2">
-                    <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold transition-all ${
+                  <div key={s} className="flex items-center gap-1.5">
+                    <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold transition-all ${
                       s < step ? "bg-violet-500 text-white" :
-                      s === step ? "bg-violet-600 text-white ring-4 ring-violet-100" :
+                      s === step ? "bg-violet-600 text-white ring-3 ring-violet-100" :
                       "bg-slate-100 text-slate-400"
                     }`}>
-                      {s < step ? <Check className="w-3.5 h-3.5" /> : s}
+                      {s < step ? <Check className="w-3 h-3" /> : s}
                     </div>
-                    {s < TOTAL_STEPS && <div className={`flex-1 h-0.5 w-4 rounded ${s < step ? "bg-violet-400" : "bg-slate-100"}`} />}
+                    {s < TOTAL_STEPS && <div className={`h-0.5 w-3 rounded ${s < step ? "bg-violet-400" : "bg-slate-100"}`} />}
                   </div>
                 ))}
               </div>
             )}
 
             {/* Step content */}
-            <div className="min-h-[320px] flex flex-col">
+            <div className="min-h-[300px] flex flex-col">
               {step === 1 && (
                 <div className="flex flex-col items-center text-center flex-1 justify-center py-4">
-                  <div className="w-24 h-24 rounded-3xl bg-gradient-to-br from-violet-100 to-indigo-100 flex items-center justify-center mb-6 shadow-inner">
-                    <GraduationCap className="w-12 h-12 text-violet-500" />
+                  <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-violet-100 to-indigo-100 flex items-center justify-center mb-5 shadow-inner">
+                    <GraduationCap className="w-10 h-10 text-violet-500" />
                   </div>
                   <h1 className="text-2xl md:text-3xl font-extrabold text-slate-900 mb-3">
                     Welcome to <span className="text-violet-600">ScorpStudy</span>!
                   </h1>
-                  <p className="text-slate-500 leading-relaxed max-w-sm">
+                  <p className="text-slate-500 leading-relaxed max-w-sm text-sm">
                     Your personal AI study companion — built for students by Bishal. Let's set up your profile so I can personalize your entire learning experience.
                   </p>
-                  <div className="mt-6 grid grid-cols-3 gap-3 w-full max-w-xs">
+                  <div className="mt-5 grid grid-cols-3 gap-3 w-full max-w-xs">
                     {[["🤖","AI Tutor"],["📝","Smart Notes"],["🧠","Quizzes"]].map(([e, l]) => (
                       <div key={l} className="bg-violet-50 rounded-xl p-3 text-center border border-violet-100">
-                        <span className="text-2xl">{e}</span>
+                        <span className="text-xl">{e}</span>
                         <p className="text-[11px] font-semibold text-violet-700 mt-1">{l}</p>
                       </div>
                     ))}
@@ -180,7 +191,6 @@ export default function Onboarding({ onComplete }: Props) {
                       <Input
                         value={firstName}
                         onChange={e => setFirstName(e.target.value)}
-                        placeholder="e.g. Priya"
                         className="h-11 text-base"
                         autoFocus
                         onKeyDown={e => e.key === "Enter" && canContinue() && next()}
@@ -193,7 +203,6 @@ export default function Onboarding({ onComplete }: Props) {
                       <Input
                         value={nickname}
                         onChange={e => setNickname(e.target.value)}
-                        placeholder="e.g. Pri, Raj, Rai..."
                         className="h-11 text-base"
                         onKeyDown={e => e.key === "Enter" && canContinue() && next()}
                       />
@@ -218,12 +227,12 @@ export default function Onboarding({ onComplete }: Props) {
                             : "border-slate-100 hover:border-violet-200 hover:bg-slate-50"
                         }`}
                       >
-                        <span className="text-2xl shrink-0">{opt.emoji}</span>
+                        <span className="text-xl shrink-0">{opt.emoji}</span>
                         <div className="min-w-0">
                           <p className={`text-sm font-bold truncate ${studyLevel === opt.value ? "text-violet-700" : "text-slate-800"}`}>{opt.label}</p>
                           <p className="text-[10px] text-slate-400 truncate">{opt.desc}</p>
                         </div>
-                        {studyLevel === opt.value && <Check className="w-4 h-4 text-violet-500 shrink-0 ml-auto" />}
+                        {studyLevel === opt.value && <Check className="w-3.5 h-3.5 text-violet-500 shrink-0 ml-auto" />}
                       </button>
                     ))}
                   </div>
@@ -236,16 +245,16 @@ export default function Onboarding({ onComplete }: Props) {
                     <h2 className="text-xl font-bold text-slate-900 mb-1">What's your main goal?</h2>
                     <p className="text-sm text-slate-500">I'll tailor every response to help you reach it.</p>
                   </div>
-                  <div className="space-y-2.5">
+                  <div className="space-y-2">
                     {LEARNING_GOALS.map(opt => (
                       <button key={opt.value} onClick={() => setLearningGoal(opt.value)}
-                        className={`w-full flex items-center gap-4 p-3.5 rounded-xl border-2 text-left transition-all ${
+                        className={`w-full flex items-center gap-4 p-3 rounded-xl border-2 text-left transition-all ${
                           learningGoal === opt.value
                             ? "border-violet-500 bg-violet-50"
                             : "border-slate-100 hover:border-violet-200 hover:bg-slate-50"
                         }`}
                       >
-                        <span className="text-2xl shrink-0">{opt.emoji}</span>
+                        <span className="text-xl shrink-0">{opt.emoji}</span>
                         <div>
                           <p className={`text-sm font-bold ${learningGoal === opt.value ? "text-violet-700" : "text-slate-800"}`}>{opt.label}</p>
                           <p className="text-xs text-slate-400">{opt.desc}</p>
@@ -270,7 +279,6 @@ export default function Onboarding({ onComplete }: Props) {
                     <Input
                       value={langSearch}
                       onChange={e => setLangSearch(e.target.value)}
-                      placeholder="Search languages..."
                       className="pl-9 h-10"
                       autoFocus
                     />
@@ -287,7 +295,7 @@ export default function Onboarding({ onComplete }: Props) {
                       </button>
                     ))}
                     {filteredLangs.length === 0 && (
-                      <p className="text-sm text-slate-400 text-center py-4">No language found. Try another search.</p>
+                      <p className="text-sm text-slate-400 text-center py-4">No language found.</p>
                     )}
                   </div>
                   {language && <p className="text-xs text-violet-600 font-semibold mt-2">✓ Selected: {language}</p>}
@@ -300,16 +308,16 @@ export default function Onboarding({ onComplete }: Props) {
                     <h2 className="text-xl font-bold text-slate-900 mb-1">How should I talk to you?</h2>
                     <p className="text-sm text-slate-500">Choose the tone that works best for you.</p>
                   </div>
-                  <div className="space-y-2.5">
+                  <div className="space-y-2">
                     {INTERACTION_STYLES.map(opt => (
                       <button key={opt.value} onClick={() => setInteractionStyle(opt.value)}
-                        className={`w-full flex items-center gap-4 p-3.5 rounded-xl border-2 text-left transition-all ${
+                        className={`w-full flex items-center gap-4 p-3 rounded-xl border-2 text-left transition-all ${
                           interactionStyle === opt.value
                             ? "border-violet-500 bg-violet-50"
                             : "border-slate-100 hover:border-violet-200 hover:bg-slate-50"
                         }`}
                       >
-                        <span className="text-2xl shrink-0">{opt.emoji}</span>
+                        <span className="text-xl shrink-0">{opt.emoji}</span>
                         <div>
                           <p className={`text-sm font-bold ${interactionStyle === opt.value ? "text-violet-700" : "text-slate-800"}`}>{opt.label}</p>
                           <p className="text-xs text-slate-400">{opt.desc}</p>
@@ -333,7 +341,7 @@ export default function Onboarding({ onComplete }: Props) {
               <Button
                 onClick={next}
                 disabled={!canContinue() || completing}
-                className={`gap-2 px-6 ${step === TOTAL_STEPS ? "bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-700 hover:to-indigo-700" : "bg-violet-600 hover:bg-violet-700"}`}
+                className="gap-2 px-6 bg-violet-600 hover:bg-violet-700"
               >
                 {completing ? (
                   <><span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />Setting up...</>
@@ -349,9 +357,8 @@ export default function Onboarding({ onComplete }: Props) {
           </div>
         </div>
 
-        {/* Bottom hint */}
         {step > 1 && (
-          <p className="text-center text-white/50 text-xs mt-4">
+          <p className="text-center text-slate-400 text-xs mt-4">
             Step {step} of {TOTAL_STEPS} • You can change all of this later in Settings
           </p>
         )}

@@ -1,4 +1,5 @@
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
+import { useUserProfile } from "@/contexts/UserProfileContext";
 import { useGetDashboardStats, useGetRecentActivity } from "@workspace/api-client-react";
 import type { DashboardStats } from "@workspace/api-client-react";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -148,8 +149,10 @@ function buildStatCards(stats: DashboardStats | undefined) {
 export default function Dashboard() {
   const { data: stats, isLoading: statsLoading } = useGetDashboardStats();
   const { data: activity, isLoading: activityLoading } = useGetRecentActivity();
+  const { profile } = useUserProfile();
   const greeting = getGreeting();
   const statCards = buildStatCards(stats);
+  const displayName = profile?.nickname?.trim() || profile?.firstName?.trim() || "Scholar";
 
   return (
     <DashboardLayout>
@@ -166,7 +169,7 @@ export default function Dashboard() {
               <div className="flex items-center gap-2 mb-1">
                 <span className="text-2xl">{greeting.emoji}</span>
                 <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">
-                  {greeting.text}, Scholar!
+                  {greeting.text}, {displayName}!
                 </h1>
               </div>
               <p className="text-purple-200 text-sm sm:text-base">

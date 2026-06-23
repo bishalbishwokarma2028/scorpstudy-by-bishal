@@ -109,7 +109,6 @@ const HOW_IT_WORKS = [
 ];
 
 const STATS = [
-  { value: "6", label: "AI Study Tools", icon: Sparkles, color: "text-violet-600" },
   { value: "60+", label: "Supported Languages", icon: Globe, color: "text-blue-600" },
   { value: "24/7", label: "Always Available", icon: Clock, color: "text-emerald-600" },
   { value: "Free", label: "To Get Started", icon: Star, color: "text-amber-500" },
@@ -362,7 +361,7 @@ export default function Landing() {
         {/* Stats bar */}
         <section className="py-10 bg-gradient-to-r from-violet-600 to-indigo-700">
           <div className="container mx-auto px-4">
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-6 max-w-3xl mx-auto">
+            <div className="grid grid-cols-3 gap-6 max-w-2xl mx-auto">
               {STATS.map((stat, i) => {
                 const Icon = stat.icon;
                 return (
