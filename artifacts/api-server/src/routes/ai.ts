@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { groq, GROQ_MODEL } from "../lib/groq";
+import { groq, GROQ_MODEL, VISION_MODEL } from "../lib/groq";
 import {
   AiChatBody,
   AiSummarizeBody,
@@ -8,8 +8,6 @@ import {
   AiEnhanceNotesBody,
 } from "@workspace/api-zod";
 import { logger } from "../lib/logger";
-
-const VISION_MODEL = "llama-3.2-11b-vision-preview";
 
 const router: IRouter = Router();
 

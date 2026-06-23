@@ -8,3 +8,4 @@ if (!apiKey) {
 export const groq = new Groq({ apiKey });
 
 export const GROQ_MODEL = "llama-3.3-70b-versatile";
+export const VISION_MODEL = "meta-llama/llama-4-scout-17b-16e-instruct";

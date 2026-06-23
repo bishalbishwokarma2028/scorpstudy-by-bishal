@@ -251,14 +251,31 @@ export default function Chat() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [location]);
 
+  const compressImage = (dataUrl: string, maxPx = 1024): Promise<string> =>
+    new Promise((resolve) => {
+      const img = new Image();
+      img.onload = () => {
+        const scale = Math.min(1, maxPx / Math.max(img.width, img.height));
+        const canvas = document.createElement("canvas");
+        canvas.width = Math.round(img.width * scale);
+        canvas.height = Math.round(img.height * scale);
+        canvas.getContext("2d")!.drawImage(img, 0, 0, canvas.width, canvas.height);
+        resolve(canvas.toDataURL("image/jpeg", 0.82));
+      };
+      img.onerror = () => resolve(dataUrl);
+      img.src = dataUrl;
+    });
+
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
     const isImage = file.type.startsWith("image/");
     const reader = new FileReader();
     if (isImage) {
-      reader.onload = () => {
-        setAttachedFile({ name: file.name, kind: "image", content: reader.result as string, mimeType: file.type, thumbnail: reader.result as string });
+      reader.onload = async () => {
+        const raw = reader.result as string;
+        const compressed = await compressImage(raw);
+        setAttachedFile({ name: file.name, kind: "image", content: compressed, mimeType: "image/jpeg", thumbnail: compressed });
       };
       reader.readAsDataURL(file);
     } else {

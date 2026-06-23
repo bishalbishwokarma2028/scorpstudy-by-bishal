@@ -617,12 +617,7 @@ export default function Landing() {
         <section className="py-20 px-4">
           <div className="container mx-auto max-w-4xl">
             <motion.div {...fadeIn()} className="bg-gradient-to-br from-slate-900 to-slate-800 rounded-3xl p-8 md:p-12 text-white">
-              <div className="flex flex-col md:flex-row gap-8 items-center">
-                <div className="shrink-0">
-                  <div className="w-24 h-24 rounded-2xl bg-gradient-to-br from-violet-500 to-indigo-500 flex items-center justify-center shadow-2xl text-4xl">
-                    👨‍💻
-                  </div>
-                </div>
+              <div className="flex flex-col md:flex-row gap-8 items-start">
                 <div>
                   <span className="text-xs font-bold text-violet-400 uppercase tracking-widest">Meet the Creator</span>
                   <h2 className="text-2xl md:text-3xl font-extrabold mt-2 mb-3">Built by Bishal Bishwokarma</h2>
