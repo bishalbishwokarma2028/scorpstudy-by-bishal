@@ -9,6 +9,7 @@ import summariesRouter from "./summaries";
 import imagesRouter from "./images";
 import aiRouter from "./ai";
 import dashboardRouter from "./dashboard";
+import profileRouter from "./profile";
 
 const router: IRouter = Router();
 
@@ -22,5 +23,6 @@ router.use(summariesRouter);
 router.use(imagesRouter);
 router.use(aiRouter);
 router.use(dashboardRouter);
+router.use(profileRouter);
 
 export default router;

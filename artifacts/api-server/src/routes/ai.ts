@@ -13,7 +13,52 @@ const VISION_MODEL = "llama-3.2-11b-vision-preview";
 
 const router: IRouter = Router();
 
-function buildSystemPrompt(mode: string): string {
+interface ProfileData {
+  firstName?: string;
+  nickname?: string;
+  studyLevel?: string;
+  learningGoal?: string;
+  preferredLanguage?: string;
+  interactionStyle?: string;
+}
+
+function buildPersonalizationSection(profile: ProfileData): string {
+  const name = profile.nickname?.trim() || profile.firstName?.trim();
+  const styleGuide: Record<string, string> = {
+    "Friendly Tutor":      "Be warm, encouraging, and conversational. Use simple analogies. Celebrate progress.",
+    "Strict Teacher":      "Be direct, precise, and rigorous. Expect thoroughness. Correct mistakes clearly.",
+    "Study Buddy":         "Be casual and relatable. Use 'we' language. Share enthusiasm. Make learning fun.",
+    "Motivational Coach":  "Be inspiring and energizing. Use motivational language. Remind them of their potential.",
+    "Professional Tutor":  "Be formal, structured, and academic. Use proper terminology. Cite sources when relevant.",
+  };
+  const goalContext: Record<string, string> = {
+    "Exam Preparation":   "Focus on exam techniques, key formulas, likely questions, and memory tricks.",
+    "Homework Help":      "Give clear step-by-step guidance. Explain the 'why' behind each step.",
+    "Programming":        "Provide working code examples. Explain logic. Include edge cases.",
+    "Skill Development":  "Build fundamentals first. Give practical exercises. Track conceptual progress.",
+    "General Learning":   "Be broad and curious. Connect ideas across fields. Encourage exploration.",
+  };
+  const levelContext: Record<string, string> = {
+    "SEE":          "Use very simple language. Short sentences. Basic concepts only. Age ~14-16.",
+    "+2 Science":   "Moderate complexity. Cover theory and formulas. Exam-focused. Age ~16-18.",
+    "+2 Management":"Focus on business concepts, economics, accounts. Practical examples. Age ~16-18.",
+    "Bachelor":     "University level depth. Include technical details. Academic writing style.",
+    "Master":       "Advanced academic level. Include research perspectives, nuanced discussions.",
+    "Other":        "Adapt to the user's apparent level based on their questions.",
+  };
+
+  let section = "\n\nUSER PERSONALIZATION (apply to every response):";
+  if (name) section += `\n- The student's name is ${name}. Use their name occasionally (not every message — feels natural, not robotic). Prefer their nickname if available.`;
+  if (profile.studyLevel) section += `\n- Study level: ${profile.studyLevel}. ${levelContext[profile.studyLevel] || ""}`;
+  if (profile.learningGoal) section += `\n- Primary goal: ${profile.learningGoal}. ${goalContext[profile.learningGoal] || ""}`;
+  if (profile.preferredLanguage && profile.preferredLanguage !== "English") {
+    section += `\n- Preferred language: ${profile.preferredLanguage}. Respond primarily in ${profile.preferredLanguage} unless they write in a different language. If needed, use bilingual explanations.`;
+  }
+  if (profile.interactionStyle) section += `\n- Interaction style: "${profile.interactionStyle}". ${styleGuide[profile.interactionStyle] || ""}`;
+  return section;
+}
+
+function buildSystemPrompt(mode: string, profile?: ProfileData): string {
   const base = `You are Bishal's AI Assistant inside ScorpStudy — a smart, friendly, and highly knowledgeable tutor for college students.
 
 IDENTITY (CRITICAL):
@@ -66,7 +111,7 @@ STUDENT UNDERSTANDING:
 - Use ## headers to organize long answers. Include real-world examples.
 - Encourage and motivate students.
 
-FORMATTING: Use markdown. **Bold** every important term. Use numbered steps for processes. Use tables for comparisons.`;
+FORMATTING: Use markdown. **Bold** every important term. Use numbered steps for processes. Use tables for comparisons.${profile ? buildPersonalizationSection(profile) : ""}`;
 
   if (mode === "topper") {
     return base + `
@@ -100,10 +145,13 @@ router.post("/ai/chat", async (req, res): Promise<void> => {
   const mode = typeof req.body?.mode === "string" ? req.body.mode : "standard";
   const imageData: unknown = req.body?.image_data;
   const hasImage = typeof imageData === "string" && imageData.startsWith("data:image");
+  const rawProfile = req.body?.userProfile;
+  const userProfile: ProfileData | undefined =
+    rawProfile && typeof rawProfile === "object" ? rawProfile as ProfileData : undefined;
 
   const systemMessage = {
     role: "system" as const,
-    content: buildSystemPrompt(mode),
+    content: buildSystemPrompt(mode, userProfile),
   };
 
   const messages = parsed.data.messages
