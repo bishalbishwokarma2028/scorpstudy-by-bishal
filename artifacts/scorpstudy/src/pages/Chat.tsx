@@ -12,7 +12,26 @@ import {
 import { toast } from "sonner";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
+import { oneDark } from "react-syntax-highlighter/dist/esm/styles/prism";
 import { useLocation } from "wouter";
+
+async function extractPdfText(file: File): Promise<string> {
+  const { getDocument, GlobalWorkerOptions } = await import("pdfjs-dist");
+  GlobalWorkerOptions.workerSrc = new URL(
+    "pdfjs-dist/build/pdf.worker.min.mjs",
+    import.meta.url,
+  ).toString();
+  const arrayBuffer = await file.arrayBuffer();
+  const pdf = await getDocument({ data: arrayBuffer }).promise;
+  let text = "";
+  for (let i = 1; i <= Math.min(pdf.numPages, 30); i++) {
+    const page = await pdf.getPage(i);
+    const content = await page.getTextContent();
+    text += content.items.map((item: { str?: string }) => item.str ?? "").join(" ") + "\n";
+  }
+  return text.trim().slice(0, 12000);
+}
 
 interface Message {
   role: "user" | "assistant";
@@ -278,10 +297,25 @@ export default function Chat() {
         setAttachedFile({ name: file.name, kind: "image", content: compressed, mimeType: "image/jpeg", thumbnail: compressed });
       };
       reader.readAsDataURL(file);
+    } else if (file.type === "application/pdf") {
+      toast.info("Reading PDF...");
+      extractPdfText(file)
+        .then((text) => {
+          if (!text.trim()) {
+            toast.warning("PDF appears to be image-only or scanned. Text could not be extracted.");
+            setAttachedFile({ name: file.name, kind: "document", content: "(This PDF appears to be scanned/image-only — no text could be extracted.)", mimeType: file.type });
+          } else {
+            setAttachedFile({ name: file.name, kind: "document", content: text, mimeType: file.type });
+            toast.success("PDF loaded — ask anything about it!");
+          }
+        })
+        .catch(() => {
+          toast.error("Failed to read PDF. Try copying the text manually.");
+        });
     } else {
       reader.onload = () => {
         const text = typeof reader.result === "string" ? reader.result : "";
-        setAttachedFile({ name: file.name, kind: "document", content: text.slice(0, 8000), mimeType: file.type });
+        setAttachedFile({ name: file.name, kind: "document", content: text.slice(0, 12000), mimeType: file.type });
         if (!text.trim()) toast.info("Could not extract text from this file. Try copying the text directly.");
       };
       reader.readAsText(file);
@@ -496,7 +530,30 @@ export default function Chat() {
                       {msg.role === "assistant" ? (
                         <>
                           <div className="prose prose-sm max-w-none prose-strong:text-primary prose-strong:font-bold prose-h2:text-slate-800 prose-h2:text-sm prose-h2:font-bold prose-h3:text-slate-700 prose-h3:text-xs prose-li:text-slate-700 prose-p:text-slate-700 prose-p:leading-relaxed prose-code:bg-slate-100 prose-code:px-1 prose-code:rounded">
-                            <ReactMarkdown remarkPlugins={[remarkGfm]}>{msg.content}</ReactMarkdown>
+                            <ReactMarkdown
+                              remarkPlugins={[remarkGfm]}
+                              components={{
+                                code({ className, children, ...props }) {
+                                  const match = /language-(\w+)/.exec(className || "");
+                                  const isBlock = !!match || String(children).includes("\n");
+                                  if (isBlock) {
+                                    return (
+                                      <SyntaxHighlighter
+                                        style={oneDark}
+                                        language={match ? match[1] : "text"}
+                                        PreTag="div"
+                                        customStyle={{ borderRadius: "10px", fontSize: "13px", margin: "8px 0" }}
+                                      >
+                                        {String(children).replace(/\n$/, "")}
+                                      </SyntaxHighlighter>
+                                    );
+                                  }
+                                  return <code className={className} {...props}>{children}</code>;
+                                },
+                              }}
+                            >
+                              {msg.content}
+                            </ReactMarkdown>
                           </div>
                           <div className="mt-3 pt-2 border-t border-slate-100 flex flex-wrap gap-3">
                             <button onClick={() => copyMessage(msg.content)} className="flex items-center gap-1 text-[11px] text-slate-400 hover:text-slate-600 transition-colors">

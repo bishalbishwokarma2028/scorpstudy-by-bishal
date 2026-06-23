@@ -324,93 +324,106 @@ export default function Notes() {
     savePinned(updated);
   };
 
-  const exportNoteToPdf = () => {
+  const exportNoteToPdf = async () => {
     if (!title.trim() && !content.trim()) { toast.error("Nothing to export"); return; }
-    const printWindow = window.open("", "_blank");
-    if (!printWindow) { toast.error("Please allow popups to export PDF"); return; }
+    toast.info("Generating PDF…");
+    try {
+      const { default: jsPDF } = await import("jspdf");
+      const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
 
-    // Convert simple markdown to readable HTML
-    const mdToHtml = (md: string) =>
-      md
-        .replace(/^### (.+)$/gm, "<h3>$1</h3>")
-        .replace(/^## (.+)$/gm, "<h2>$1</h2>")
-        .replace(/^# (.+)$/gm, "<h1>$1</h1>")
-        .replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")
-        .replace(/\*(.+?)\*/g, "<em>$1</em>")
-        .replace(/`(.+?)`/g, "<code>$1</code>")
-        .replace(/^> (.+)$/gm, "<blockquote>$1</blockquote>")
-        .replace(/^- \[ \] (.+)$/gm, "<li class='task'>☐ $1</li>")
-        .replace(/^- \[x\] (.+)$/gm, "<li class='task done'>☑ $1</li>")
-        .replace(/^- (.+)$/gm, "<li>$1</li>")
-        .replace(/^(\d+)\. (.+)$/gm, "<li>$2</li>")
-        .replace(/\|(.+)\|/g, (row) => {
-          const cells = row.split("|").filter(Boolean).map(c => `<td>${c.trim()}</td>`).join("");
-          return `<tr>${cells}</tr>`;
-        })
-        .replace(/(<tr>.*<\/tr>\n?)+/g, m => `<table>${m}</table>`)
-        .replace(/```[\s\S]*?```/g, m => `<pre><code>${m.replace(/```[a-z]*/g, "").replace(/```/g, "").trim()}</code></pre>`)
-        .replace(/\n{2,}/g, "</p><p>")
-        .replace(/\n/g, "<br/>");
+      const pageW = 210, pageH = 297;
+      const marginX = 18, marginY = 22, maxW = pageW - marginX * 2;
+      let y = marginY;
 
-    const htmlContent = mdToHtml(content);
-    const now = new Date().toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" });
+      const brand = "ScorpStudy — Smart Notes";
+      doc.setFontSize(8);
+      doc.setTextColor(124, 58, 237);
+      doc.setFont("helvetica", "bold");
+      doc.text(brand.toUpperCase(), marginX, y);
+      y += 7;
 
-    printWindow.document.write(`<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="UTF-8" />
-  <title>${title || "Note"}</title>
-  <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { font-family: 'Georgia', serif; font-size: 12pt; color: #1e293b; background: white; padding: 0; }
-    .page { max-width: 750px; margin: 0 auto; padding: 48px 56px; }
-    .header { border-bottom: 3px solid #7c3aed; padding-bottom: 20px; margin-bottom: 28px; }
-    .brand { font-size: 10pt; font-weight: bold; color: #7c3aed; letter-spacing: 0.08em; text-transform: uppercase; margin-bottom: 8px; }
-    .note-title { font-size: 26pt; font-weight: 800; color: #0f172a; line-height: 1.2; margin-bottom: 8px; }
-    .meta { font-size: 9pt; color: #94a3b8; }
-    .content { line-height: 1.8; }
-    .content p { margin-bottom: 14px; color: #334155; }
-    .content h1 { font-size: 18pt; font-weight: 800; color: #0f172a; margin: 24px 0 10px; border-bottom: 2px solid #e2e8f0; padding-bottom: 6px; }
-    .content h2 { font-size: 14pt; font-weight: 700; color: #1e293b; margin: 20px 0 8px; }
-    .content h3 { font-size: 12pt; font-weight: 700; color: #334155; margin: 16px 0 6px; }
-    .content strong { font-weight: 700; color: #0f172a; }
-    .content em { font-style: italic; color: #475569; }
-    .content code { background: #f1f5f9; padding: 2px 6px; border-radius: 4px; font-family: monospace; font-size: 10pt; color: #7c3aed; }
-    .content pre { background: #1e293b; color: #e2e8f0; padding: 16px; border-radius: 8px; margin: 16px 0; overflow: hidden; }
-    .content pre code { background: none; color: #e2e8f0; padding: 0; font-size: 9.5pt; }
-    .content blockquote { border-left: 4px solid #7c3aed; padding: 10px 16px; background: #faf5ff; color: #4c1d95; margin: 14px 0; border-radius: 0 8px 8px 0; font-style: italic; }
-    .content li { margin: 5px 0 5px 22px; color: #334155; }
-    .content li.task { list-style: none; margin-left: 0; }
-    .content li.done { color: #16a34a; }
-    .content table { width: 100%; border-collapse: collapse; margin: 16px 0; }
-    .content td, .content th { border: 1px solid #e2e8f0; padding: 8px 12px; font-size: 10pt; }
-    .content tr:nth-child(even) td { background: #f8fafc; }
-    .footer { margin-top: 40px; padding-top: 16px; border-top: 1px solid #e2e8f0; display: flex; justify-content: space-between; font-size: 8.5pt; color: #94a3b8; }
-    @media print {
-      body { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
-      .page { padding: 32px 40px; }
-      @page { margin: 0.5in; }
+      doc.setDrawColor(124, 58, 237);
+      doc.setLineWidth(0.6);
+      doc.line(marginX, y, pageW - marginX, y);
+      y += 6;
+
+      doc.setFontSize(20);
+      doc.setTextColor(15, 23, 42);
+      doc.setFont("helvetica", "bold");
+      const titleLines = doc.splitTextToSize(title || "Untitled Note", maxW);
+      doc.text(titleLines, marginX, y);
+      y += titleLines.length * 8 + 4;
+
+      const now = new Date().toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" });
+      doc.setFontSize(8);
+      doc.setTextColor(148, 163, 184);
+      doc.setFont("helvetica", "normal");
+      doc.text(`Exported on ${now}`, marginX, y);
+      y += 10;
+
+      doc.setDrawColor(226, 232, 240);
+      doc.setLineWidth(0.3);
+      doc.line(marginX, y, pageW - marginX, y);
+      y += 8;
+
+      const lines = content.split("\n");
+      for (const raw of lines) {
+        if (y > pageH - 25) {
+          doc.addPage();
+          y = marginY;
+        }
+        const line = raw.trimEnd();
+        if (/^# /.test(line)) {
+          doc.setFontSize(15); doc.setTextColor(15, 23, 42); doc.setFont("helvetica", "bold");
+          const t = doc.splitTextToSize(line.replace(/^# /, ""), maxW);
+          doc.text(t, marginX, y); y += t.length * 7 + 3;
+        } else if (/^## /.test(line)) {
+          doc.setFontSize(12); doc.setTextColor(30, 41, 59); doc.setFont("helvetica", "bold");
+          const t = doc.splitTextToSize(line.replace(/^## /, ""), maxW);
+          doc.text(t, marginX, y); y += t.length * 6 + 2;
+        } else if (/^### /.test(line)) {
+          doc.setFontSize(10); doc.setTextColor(51, 65, 85); doc.setFont("helvetica", "bold");
+          const t = doc.splitTextToSize(line.replace(/^### /, ""), maxW);
+          doc.text(t, marginX, y); y += t.length * 5.5 + 2;
+        } else if (/^```/.test(line)) {
+          doc.setFontSize(8.5); doc.setTextColor(226, 232, 240); doc.setFont("courier", "normal");
+          doc.setFillColor(30, 41, 59);
+        } else if (/^- /.test(line) || /^\d+\. /.test(line)) {
+          doc.setFontSize(9.5); doc.setTextColor(51, 65, 85); doc.setFont("helvetica", "normal");
+          const bullet = /^- /.test(line) ? "•  " : `${line.match(/^\d+/)?.[0] ?? "1"}.  `;
+          const text = line.replace(/^- /, "").replace(/^\d+\. /, "");
+          const t = doc.splitTextToSize(bullet + text, maxW - 5);
+          doc.text(t, marginX + 3, y); y += t.length * 5 + 1;
+        } else if (/^> /.test(line)) {
+          doc.setFontSize(9); doc.setTextColor(76, 29, 149); doc.setFont("helvetica", "bolditalic");
+          const t = doc.splitTextToSize(line.replace(/^> /, ""), maxW - 8);
+          doc.setFillColor(250, 245, 255);
+          doc.roundedRect(marginX, y - 4, maxW, t.length * 5 + 4, 2, 2, "F");
+          doc.text(t, marginX + 4, y); y += t.length * 5 + 4;
+        } else if (line.trim() === "") {
+          y += 3;
+        } else {
+          doc.setFontSize(10); doc.setTextColor(51, 65, 85); doc.setFont("helvetica", "normal");
+          const plain = line.replace(/\*\*(.+?)\*\*/g, "$1").replace(/\*(.+?)\*/g, "$1").replace(/`(.+?)`/g, "$1");
+          const t = doc.splitTextToSize(plain, maxW);
+          doc.text(t, marginX, y); y += t.length * 5.5 + 1;
+        }
+      }
+
+      if (y > pageH - 18) { doc.addPage(); y = pageH - 14; }
+      else { y = pageH - 12; }
+      doc.setDrawColor(226, 232, 240); doc.setLineWidth(0.3);
+      doc.line(marginX, y - 3, pageW - marginX, y - 3);
+      doc.setFontSize(7.5); doc.setTextColor(148, 163, 184); doc.setFont("helvetica", "normal");
+      doc.text("ScorpStudy by Bishal Bishwokarma", marginX, y + 2);
+      doc.text(now, pageW - marginX, y + 2, { align: "right" });
+
+      const fileName = `${(title || "note").replace(/[^a-z0-9]/gi, "_").toLowerCase()}.pdf`;
+      doc.save(fileName);
+      toast.success("PDF downloaded!");
+    } catch {
+      toast.error("PDF export failed. Please try again.");
     }
-  </style>
-</head>
-<body>
-  <div class="page">
-    <div class="header">
-      <div class="brand">📚 ScorpStudy — Smart Notes</div>
-      <div class="note-title">${title || "Untitled Note"}</div>
-      <div class="meta">Exported on ${now}</div>
-    </div>
-    <div class="content"><p>${htmlContent}</p></div>
-    <div class="footer">
-      <span>ScorpStudy by Bishal Bishwokarma</span>
-      <span>${now}</span>
-    </div>
-  </div>
-</body>
-</html>`);
-    printWindow.document.close();
-    setTimeout(() => { printWindow.focus(); printWindow.print(); }, 600);
-    toast.success("PDF export ready — choose 'Save as PDF' in the print dialog");
   };
 
   const insertFormat = (prefix: string, suffix = "", placeholder = "text") => {
