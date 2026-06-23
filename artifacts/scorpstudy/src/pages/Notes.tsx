@@ -123,22 +123,22 @@ function savePinned(pins: number[]) {
 /** Confirmation dialog component */
 function ConfirmDialog({ message, onConfirm, onCancel }: { message: string; onConfirm: () => void; onCancel: () => void }) {
   return (
-    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4" onClick={onCancel}>
-      <div className="bg-white rounded-2xl shadow-2xl p-6 max-w-sm w-full" onClick={e => e.stopPropagation()}>
-        <div className="flex items-start gap-3 mb-4">
-          <div className="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center shrink-0">
-            <Trash2 className="w-5 h-5 text-red-500" />
+    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4" onClick={onCancel}>
+      <div className="bg-white rounded-2xl shadow-2xl p-7 max-w-sm w-full border-2 border-red-100" onClick={e => e.stopPropagation()}>
+        <div className="flex flex-col items-center text-center mb-6">
+          <div className="w-16 h-16 rounded-full bg-red-100 flex items-center justify-center mb-4 ring-4 ring-red-50">
+            <Trash2 className="w-8 h-8 text-red-500" />
           </div>
-          <div>
-            <h3 className="font-bold text-slate-900 text-base">Are you sure?</h3>
-            <p className="text-sm text-slate-500 mt-1">{message}</p>
-          </div>
+          <h3 className="text-xl font-extrabold text-red-600 mb-2">Are you sure?</h3>
+          <p className="text-base font-bold text-red-500 mb-2">Do you want to delete this?</p>
+          <p className="text-sm text-slate-500 leading-relaxed">{message}</p>
+          <p className="text-xs text-red-400 font-medium mt-3 bg-red-50 px-3 py-1.5 rounded-full">⚠️ This action cannot be undone</p>
         </div>
-        <div className="flex gap-2 justify-end">
-          <Button variant="outline" size="sm" onClick={onCancel} className="gap-1">
+        <div className="flex gap-3">
+          <Button variant="outline" onClick={onCancel} className="flex-1 gap-1 border-slate-200">
             <X className="w-4 h-4" /> Cancel
           </Button>
-          <Button size="sm" onClick={onConfirm} className="bg-red-500 hover:bg-red-600 gap-1">
+          <Button onClick={onConfirm} className="flex-1 bg-red-500 hover:bg-red-600 gap-1 font-bold">
             <Trash2 className="w-4 h-4" /> Yes, Delete
           </Button>
         </div>
@@ -324,14 +324,93 @@ export default function Notes() {
     savePinned(updated);
   };
 
-  const exportNote = () => {
-    const blob = new Blob([`# ${title}\n\n${content}`], { type: "text/markdown" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `${title.replace(/[^a-z0-9]/gi, "-").toLowerCase() || "note"}.md`;
-    a.click();
-    URL.revokeObjectURL(url);
+  const exportNoteToPdf = () => {
+    if (!title.trim() && !content.trim()) { toast.error("Nothing to export"); return; }
+    const printWindow = window.open("", "_blank");
+    if (!printWindow) { toast.error("Please allow popups to export PDF"); return; }
+
+    // Convert simple markdown to readable HTML
+    const mdToHtml = (md: string) =>
+      md
+        .replace(/^### (.+)$/gm, "<h3>$1</h3>")
+        .replace(/^## (.+)$/gm, "<h2>$1</h2>")
+        .replace(/^# (.+)$/gm, "<h1>$1</h1>")
+        .replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")
+        .replace(/\*(.+?)\*/g, "<em>$1</em>")
+        .replace(/`(.+?)`/g, "<code>$1</code>")
+        .replace(/^> (.+)$/gm, "<blockquote>$1</blockquote>")
+        .replace(/^- \[ \] (.+)$/gm, "<li class='task'>☐ $1</li>")
+        .replace(/^- \[x\] (.+)$/gm, "<li class='task done'>☑ $1</li>")
+        .replace(/^- (.+)$/gm, "<li>$1</li>")
+        .replace(/^(\d+)\. (.+)$/gm, "<li>$2</li>")
+        .replace(/\|(.+)\|/g, (row) => {
+          const cells = row.split("|").filter(Boolean).map(c => `<td>${c.trim()}</td>`).join("");
+          return `<tr>${cells}</tr>`;
+        })
+        .replace(/(<tr>.*<\/tr>\n?)+/g, m => `<table>${m}</table>`)
+        .replace(/```[\s\S]*?```/g, m => `<pre><code>${m.replace(/```[a-z]*/g, "").replace(/```/g, "").trim()}</code></pre>`)
+        .replace(/\n{2,}/g, "</p><p>")
+        .replace(/\n/g, "<br/>");
+
+    const htmlContent = mdToHtml(content);
+    const now = new Date().toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" });
+
+    printWindow.document.write(`<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8" />
+  <title>${title || "Note"}</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Georgia', serif; font-size: 12pt; color: #1e293b; background: white; padding: 0; }
+    .page { max-width: 750px; margin: 0 auto; padding: 48px 56px; }
+    .header { border-bottom: 3px solid #7c3aed; padding-bottom: 20px; margin-bottom: 28px; }
+    .brand { font-size: 10pt; font-weight: bold; color: #7c3aed; letter-spacing: 0.08em; text-transform: uppercase; margin-bottom: 8px; }
+    .note-title { font-size: 26pt; font-weight: 800; color: #0f172a; line-height: 1.2; margin-bottom: 8px; }
+    .meta { font-size: 9pt; color: #94a3b8; }
+    .content { line-height: 1.8; }
+    .content p { margin-bottom: 14px; color: #334155; }
+    .content h1 { font-size: 18pt; font-weight: 800; color: #0f172a; margin: 24px 0 10px; border-bottom: 2px solid #e2e8f0; padding-bottom: 6px; }
+    .content h2 { font-size: 14pt; font-weight: 700; color: #1e293b; margin: 20px 0 8px; }
+    .content h3 { font-size: 12pt; font-weight: 700; color: #334155; margin: 16px 0 6px; }
+    .content strong { font-weight: 700; color: #0f172a; }
+    .content em { font-style: italic; color: #475569; }
+    .content code { background: #f1f5f9; padding: 2px 6px; border-radius: 4px; font-family: monospace; font-size: 10pt; color: #7c3aed; }
+    .content pre { background: #1e293b; color: #e2e8f0; padding: 16px; border-radius: 8px; margin: 16px 0; overflow: hidden; }
+    .content pre code { background: none; color: #e2e8f0; padding: 0; font-size: 9.5pt; }
+    .content blockquote { border-left: 4px solid #7c3aed; padding: 10px 16px; background: #faf5ff; color: #4c1d95; margin: 14px 0; border-radius: 0 8px 8px 0; font-style: italic; }
+    .content li { margin: 5px 0 5px 22px; color: #334155; }
+    .content li.task { list-style: none; margin-left: 0; }
+    .content li.done { color: #16a34a; }
+    .content table { width: 100%; border-collapse: collapse; margin: 16px 0; }
+    .content td, .content th { border: 1px solid #e2e8f0; padding: 8px 12px; font-size: 10pt; }
+    .content tr:nth-child(even) td { background: #f8fafc; }
+    .footer { margin-top: 40px; padding-top: 16px; border-top: 1px solid #e2e8f0; display: flex; justify-content: space-between; font-size: 8.5pt; color: #94a3b8; }
+    @media print {
+      body { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
+      .page { padding: 32px 40px; }
+      @page { margin: 0.5in; }
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <div class="header">
+      <div class="brand">📚 ScorpStudy — Smart Notes</div>
+      <div class="note-title">${title || "Untitled Note"}</div>
+      <div class="meta">Exported on ${now}</div>
+    </div>
+    <div class="content"><p>${htmlContent}</p></div>
+    <div class="footer">
+      <span>ScorpStudy by Bishal Bishwokarma</span>
+      <span>${now}</span>
+    </div>
+  </div>
+</body>
+</html>`);
+    printWindow.document.close();
+    setTimeout(() => { printWindow.focus(); printWindow.print(); }, 600);
+    toast.success("PDF export ready — choose 'Save as PDF' in the print dialog");
   };
 
   const insertFormat = (prefix: string, suffix = "", placeholder = "text") => {
@@ -535,8 +614,8 @@ export default function Notes() {
               {aiLoading === "quiz" ? <Loader2 className="w-3 h-3 animate-spin" /> : <FileText className="w-3 h-3" />}
               Quiz Me
             </Button>
-            <Button variant="ghost" size="sm" className="h-7 text-xs text-slate-500 hover:bg-slate-100 gap-1" onClick={exportNote} disabled={!content.trim()}>
-              <Download className="w-3 h-3" /> Export
+            <Button variant="ghost" size="sm" className="h-7 text-xs text-slate-500 hover:bg-slate-100 gap-1" onClick={exportNoteToPdf} disabled={!content.trim()}>
+              <Download className="w-3 h-3" /> Export to PDF
             </Button>
             <Button size="sm" className="h-7 text-xs bg-pink-600 hover:bg-pink-700 gap-1" onClick={() => doSave()} disabled={createNote.isPending || updateNote.isPending}>
               {(createNote.isPending || updateNote.isPending) ? <Loader2 className="w-3 h-3 animate-spin" /> : <Save className="w-3 h-3" />}

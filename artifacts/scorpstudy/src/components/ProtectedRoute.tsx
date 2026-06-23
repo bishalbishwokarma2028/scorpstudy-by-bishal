@@ -1,4 +1,4 @@
-import { ReactNode } from "react";
+import { ReactNode, useEffect } from "react";
 import { useLocation } from "wouter";
 import { useAuth } from "@/contexts/AuthContext";
 import { Loader2 } from "lucide-react";
@@ -6,6 +6,12 @@ import { Loader2 } from "lucide-react";
 export function ProtectedRoute({ children }: { children: ReactNode }) {
   const { session, loading } = useAuth();
   const [, navigate] = useLocation();
+
+  useEffect(() => {
+    if (!loading && !session) {
+      navigate("/signin");
+    }
+  }, [loading, session, navigate]);
 
   if (loading) {
     return (
@@ -16,7 +22,6 @@ export function ProtectedRoute({ children }: { children: ReactNode }) {
   }
 
   if (!session) {
-    navigate("/signin");
     return null;
   }
 

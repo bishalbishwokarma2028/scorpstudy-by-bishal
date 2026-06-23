@@ -1,0 +1,89 @@
+Inside Smart Notes , Replace "Export" with "Export to pdf" , and make sure this export to pdf must work perfectly and completely . So that user can feel satisfied by looking the pdf . Whenever deleting anything , it display this . It should clarly show "Are you sure ? Do you want to delete this? " in red letter in clear design . Inside Bishal's Assistant , when uploading image with questions , when asking for answering , it does nothing , Please fix this . If not fixed here , then add "Image Question Solver" section , then it should be able to answer all the questions that are inside the image . Whenever I ask for Code or anything diagram inside Bishal's Assistant , the answer is not visible or the font or text is not visible . Make sure all must be fixed clearly and completely . Build a first-time onboarding system for a student AI app "ScorpStudy by Bishal".
+
+TRIGGER:
+
+Show only after first sign up/login
+Store onboardingCompleted = true
+Do not show again unless user resets profile
+ONBOARDING STEPS:
+
+Step 1: Welcome Screen
+
+Intro to personalized AI learning
+Button: Get Started
+Step 2: Name
+
+First Name (required)
+Nickname (optional)
+Step 3: Study Level
+
+SEE
++2 Science
++2 Management
+Bachelor
+Master
+Other
+Step 4: Learning Goal
+
+Exam Preparation
+Homework Help
+Programming
+Skill Development
+General Learning
+Step 5: Preferred Language (GLOBAL SUPPORT REQUIRED)
+
+User can select ANY language
+Provide searchable dropdown or list of world languages
+Must include major global languages such as:
+
+English
+Nepali
+Hindi
+Chinese (Simplified)
+Chinese (Traditional)
+Japanese
+Korean
+Spanish
+French
+German
+Arabic
+Russian
+Portuguese
+Bengali
+Urdu
+Italian
+Turkish
+Also allow "Other (Search Language)" option.
+
+Store language as ISO code or standard language name.
+
+Step 6: Interaction Style
+
+Friendly Tutor
+Strict Teacher
+Study Buddy
+Motivational Coach
+Professional Tutor
+DATA STORAGE: { firstName, nickname, studyLevel, learningGoal, preferredLanguage, interactionStyle, onboardingCompleted }
+
+AI PERSONALIZATION:
+
+For all responses in "Bishal's Assistant":
+
+Inject user profile into system prompt
+Use name occasionally, not every time
+Prefer nickname if available
+Adjust difficulty based on study level
+Use selected language for responses (or bilingual if needed)
+Adapt tone based on interaction style
+Use examples relevant to learning goal
+SETTINGS:
+
+Allow editing all onboarding fields anytime
+Changes must instantly affect AI behavior
+UI REQUIREMENTS:
+
+Modern onboarding wizard
+Smooth transitions
+Progress indicator
+Mobile friendly AFter first opening my app , there is not much enough content . Add many more and rich in educational or learning related or a type of promotional content for my app , so that users can get enough information about this app .

@@ -3,9 +3,11 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
+import { UserProfileProvider, useUserProfile } from "@/contexts/UserProfileContext";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { Loader2 } from "lucide-react";
 import NotFound from "@/pages/not-found";
+import Onboarding from "@/pages/Onboarding";
 
 import Landing from "@/pages/Landing";
 import SignIn from "@/pages/SignIn";
@@ -20,6 +22,24 @@ import Notes from "@/pages/Notes";
 import History from "@/pages/History";
 
 const queryClient = new QueryClient();
+
+function OnboardingGate({ children }: { children: React.ReactNode }) {
+  const { needsOnboarding, profileLoaded, saveProfile } = useUserProfile();
+
+  if (!profileLoaded) {
+    return (
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  if (needsOnboarding) {
+    return <Onboarding onComplete={saveProfile} />;
+  }
+
+  return <>{children}</>;
+}
 
 function Router() {
   const { loading } = useAuth();
@@ -38,28 +58,28 @@ function Router() {
       <Route path="/signin" component={SignIn} />
       <Route path="/signup" component={SignUp} />
       <Route path="/dashboard">
-        {() => <ProtectedRoute><Dashboard /></ProtectedRoute>}
+        {() => <ProtectedRoute><OnboardingGate><Dashboard /></OnboardingGate></ProtectedRoute>}
       </Route>
       <Route path="/dashboard/chat">
-        {() => <ProtectedRoute><Chat /></ProtectedRoute>}
+        {() => <ProtectedRoute><OnboardingGate><Chat /></OnboardingGate></ProtectedRoute>}
       </Route>
       <Route path="/dashboard/summarizer">
-        {() => <ProtectedRoute><Summarizer /></ProtectedRoute>}
+        {() => <ProtectedRoute><OnboardingGate><Summarizer /></OnboardingGate></ProtectedRoute>}
       </Route>
       <Route path="/dashboard/quiz">
-        {() => <ProtectedRoute><Quiz /></ProtectedRoute>}
+        {() => <ProtectedRoute><OnboardingGate><Quiz /></OnboardingGate></ProtectedRoute>}
       </Route>
       <Route path="/dashboard/flashcards">
-        {() => <ProtectedRoute><Flashcards /></ProtectedRoute>}
+        {() => <ProtectedRoute><OnboardingGate><Flashcards /></OnboardingGate></ProtectedRoute>}
       </Route>
       <Route path="/dashboard/image-gen">
-        {() => <ProtectedRoute><ImageGen /></ProtectedRoute>}
+        {() => <ProtectedRoute><OnboardingGate><ImageGen /></OnboardingGate></ProtectedRoute>}
       </Route>
       <Route path="/dashboard/notes">
-        {() => <ProtectedRoute><Notes /></ProtectedRoute>}
+        {() => <ProtectedRoute><OnboardingGate><Notes /></OnboardingGate></ProtectedRoute>}
       </Route>
       <Route path="/dashboard/history">
-        {() => <ProtectedRoute><History /></ProtectedRoute>}
+        {() => <ProtectedRoute><OnboardingGate><History /></OnboardingGate></ProtectedRoute>}
       </Route>
       <Route component={NotFound} />
     </Switch>
@@ -72,7 +92,9 @@ function App() {
       <TooltipProvider>
         <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
           <AuthProvider>
-            <Router />
+            <UserProfileProvider>
+              <Router />
+            </UserProfileProvider>
           </AuthProvider>
         </WouterRouter>
         <Toaster />

@@ -271,10 +271,10 @@ export default function Chat() {
   };
 
   const handleSend = async () => {
-    if (!input.trim() || isLoading) return;
+    if ((!input.trim() && !attachedFile) || isLoading) return;
     setSavedThisSession(false);
 
-    let msgContent = input.trim();
+    let msgContent = input.trim() || (attachedFile?.kind === "image" ? "Please solve/explain this image." : "");
     let imageData: string | null = null;
 
     if (attachedFile) {
