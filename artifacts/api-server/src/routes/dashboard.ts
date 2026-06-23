@@ -1,7 +1,6 @@
 import { Router, type IRouter } from "express";
-import { db, notesTable, chatsTable, quizzesTable, flashcardsTable, summariesTable, imagesTable } from "@workspace/db";
-import { desc } from "drizzle-orm";
-import { sql } from "drizzle-orm";
+import { db, chatsTable, quizzesTable, flashcardsTable, summariesTable, notesTable, imagesTable } from "@workspace/db";
+import { desc, lt, sql } from "drizzle-orm";
 
 const router: IRouter = Router();
 
@@ -35,22 +34,24 @@ router.get("/dashboard/stats", async (_req, res): Promise<void> => {
 });
 
 router.get("/dashboard/activity", async (_req, res): Promise<void> => {
-  const [notes, chats, quizzes, flashcards, summaries, images] = await Promise.all([
-    db.select().from(notesTable).orderBy(desc(notesTable.createdAt)).limit(3),
-    db.select().from(chatsTable).orderBy(desc(chatsTable.createdAt)).limit(3),
-    db.select().from(quizzesTable).orderBy(desc(quizzesTable.createdAt)).limit(3),
-    db.select().from(flashcardsTable).orderBy(desc(flashcardsTable.createdAt)).limit(3),
-    db.select().from(summariesTable).orderBy(desc(summariesTable.createdAt)).limit(3),
-    db.select().from(imagesTable).orderBy(desc(imagesTable.createdAt)).limit(3),
+  // Auto-delete records older than 30 days (chats, summaries, quizzes, flashcards)
+  const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+  await Promise.all([
+    db.delete(chatsTable).where(lt(chatsTable.createdAt, thirtyDaysAgo)),
+    db.delete(summariesTable).where(lt(summariesTable.createdAt, thirtyDaysAgo)),
+    db.delete(quizzesTable).where(lt(quizzesTable.createdAt, thirtyDaysAgo)),
+    db.delete(flashcardsTable).where(lt(flashcardsTable.createdAt, thirtyDaysAgo)),
+  ]);
+
+  // Fetch history — only chats, summaries, quizzes, flashcards (no notes, no images)
+  const [chats, quizzes, flashcards, summaries] = await Promise.all([
+    db.select().from(chatsTable).orderBy(desc(chatsTable.createdAt)).limit(50),
+    db.select().from(quizzesTable).orderBy(desc(quizzesTable.createdAt)).limit(50),
+    db.select().from(flashcardsTable).orderBy(desc(flashcardsTable.createdAt)).limit(50),
+    db.select().from(summariesTable).orderBy(desc(summariesTable.createdAt)).limit(50),
   ]);
 
   const activity = [
-    ...notes.map((n) => ({
-      id: `note-${n.id}`,
-      type: "note",
-      title: n.title,
-      createdAt: n.createdAt.toISOString(),
-    })),
     ...chats.map((c) => ({
       id: `chat-${c.id}`,
       type: "chat",
@@ -72,18 +73,12 @@ router.get("/dashboard/activity", async (_req, res): Promise<void> => {
     ...summaries.map((s) => ({
       id: `summary-${s.id}`,
       type: "summary",
-      title: `Summary: ${s.originalText.slice(0, 50)}...`,
+      title: `Summary: ${s.originalText.slice(0, 60)}${s.originalText.length > 60 ? "..." : ""}`,
       createdAt: s.createdAt.toISOString(),
-    })),
-    ...images.map((img) => ({
-      id: `image-${img.id}`,
-      type: "image",
-      title: `Image: ${img.prompt.slice(0, 50)}`,
-      createdAt: img.createdAt.toISOString(),
     })),
   ]
     .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
-    .slice(0, 10);
+    .slice(0, 100);
 
   res.json(activity);
 });

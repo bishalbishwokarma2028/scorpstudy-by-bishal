@@ -472,9 +472,9 @@ export default function Notes() {
 
       {/* Desktop: side-by-side */}
       <div className="hidden md:flex gap-4 h-[calc(100vh-5rem)]">
-        <div className="w-72 shrink-0"><NotesList /></div>
+        <div className="w-72 shrink-0">{NotesList()}</div>
         <div className="flex-1">
-          {showEditor || selectedNoteId !== null ? <Editor /> : (
+          {showEditor || selectedNoteId !== null ? Editor() : (
             <div className="h-full flex flex-col items-center justify-center text-center bg-white border-2 border-dashed border-slate-200 rounded-xl">
               <div className="w-20 h-20 rounded-2xl bg-pink-50 flex items-center justify-center mb-5">
                 <BookOpen className="w-10 h-10 text-pink-300" />
@@ -491,7 +491,7 @@ export default function Notes() {
 
       {/* Mobile */}
       <div className="md:hidden h-[calc(100vh-5rem)]">
-        {showEditor ? <Editor /> : <NotesList />}
+        {showEditor ? Editor() : NotesList()}
       </div>
     </DashboardLayout>
   );

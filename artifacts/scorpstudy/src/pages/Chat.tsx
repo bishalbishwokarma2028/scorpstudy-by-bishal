@@ -57,6 +57,8 @@ const persist = {
 };
 
 function VisualModal({ data, onClose }: { data: VisualData; onClose: () => void }) {
+  const [expandedNode, setExpandedNode] = useState<string | null>(null);
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm" onClick={onClose}>
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[92vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
@@ -76,22 +78,49 @@ function VisualModal({ data, onClose }: { data: VisualData; onClose: () => void 
         <div className="p-5 space-y-6">
           {data.nodes?.length > 0 && (
             <div>
-              <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-4">Visual Breakdown</h3>
+              <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-1">Visual Breakdown</h3>
+              <p className="text-[11px] text-slate-400 mb-4">Tap any point to see a full explanation</p>
               <div className="space-y-2">
                 {data.nodes.map((node, i) => {
                   const colorClass = COLOR_MAP[node.color] ?? COLOR_MAP.blue;
                   const nextNode = data.nodes[i + 1];
                   const conn = data.connections?.find(c => c.from === node.id && c.to === nextNode?.id);
+                  const isExpanded = expandedNode === node.id;
                   return (
                     <div key={node.id}>
-                      <div className={`flex gap-3 p-3 rounded-xl border-2 ${colorClass} shadow-sm`}>
+                      <button
+                        className={`w-full text-left flex gap-3 p-3 rounded-xl border-2 ${colorClass} shadow-sm transition-all active:scale-[0.99] cursor-pointer hover:shadow-md`}
+                        onClick={() => setExpandedNode(isExpanded ? null : node.id)}
+                      >
                         <div className="w-8 h-8 rounded-full bg-white/70 flex items-center justify-center font-bold text-sm shrink-0">{i + 1}</div>
-                        <div>
-                          <div className="font-bold text-sm">{node.label}</div>
-                          {node.detail && <div className="text-xs opacity-75 mt-0.5">{node.detail}</div>}
+                        <div className="flex-1 min-w-0">
+                          <div className="font-bold text-sm flex items-center justify-between gap-2">
+                            <span>{node.label}</span>
+                            <span className="text-[10px] font-normal opacity-60 shrink-0">{isExpanded ? "▲ hide" : "▼ explain"}</span>
+                          </div>
+                          {node.detail && !isExpanded && (
+                            <div className="text-xs opacity-75 mt-0.5 line-clamp-1">{node.detail}</div>
+                          )}
                         </div>
-                      </div>
-                      {conn && (
+                      </button>
+
+                      {/* Expanded explanation panel */}
+                      {isExpanded && (
+                        <div className={`mx-2 p-4 rounded-b-xl border-x-2 border-b-2 ${colorClass} bg-white/80`}>
+                          <div className="flex items-start gap-2 mb-2">
+                            <span className="text-base shrink-0">📖</span>
+                            <p className="text-sm font-semibold text-slate-800">{node.label} — Explanation</p>
+                          </div>
+                          <p className="text-sm text-slate-700 leading-relaxed">{node.detail}</p>
+                          {conn && (
+                            <div className="mt-3 pt-3 border-t border-slate-200 text-xs text-slate-500 italic flex items-center gap-1.5">
+                              <span className="font-semibold text-slate-600">Next step:</span> {conn.label} → {nextNode?.label}
+                            </div>
+                          )}
+                        </div>
+                      )}
+
+                      {!isExpanded && conn && (
                         <div className="flex items-center gap-2 pl-10 py-1">
                           <div className="w-0.5 h-5 bg-slate-200 rounded" />
                           <span className="text-[10px] text-slate-400 italic bg-slate-50 px-2 py-0.5 rounded-full border border-slate-100">{conn.label}</span>

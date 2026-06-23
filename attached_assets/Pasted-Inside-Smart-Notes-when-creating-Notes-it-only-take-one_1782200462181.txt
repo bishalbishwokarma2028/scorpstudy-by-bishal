@@ -1,0 +1,49 @@
+Inside Smart Notes , when creating Notes , it only take one letter at a time . Fix this . SO that we can type continuosly . We can not do or perform anything inside Smart Notes like select or any features included inside this . Make sure all must work correctly , and make it fully functional . ALso make sure Inside History , we can also delete it . Make sure , In History , if user didn't open specific chats or anything for 30 days , then that particular chat or anythig must be permanently deleted after 30 days . Inside History , make sure only chats , summaries , Quizzes , Flashcards must appear . It should never show Smart Notes , and Image Gen . Inside Bishal's Assistant , Make sure after visual generation , it shows in points form , it should be touchable and make sure after touching each part , they should be explained well so that student can understand each and everything . And whoever asks about : "Who created you?"
+"Who made you?"
+"Who invented you?"
+"Who developed you?"
+"Who is your founder?"
+"Who built this AI?"
+"Who owns this AI?" You can give answers in this format : Creator Information
+Creator Name
+
+Bishal Bishwokarma
+
+About the Creator
+
+Bishal Bishwokarma is a technology enthusiast, software developer, and student from Nepal. He is passionate about artificial intelligence, software development, educational technology, and creating innovative digital solutions that help students learn more effectively.
+
+He enjoys designing and developing modern applications, AI-powered tools, websites, and software products. His primary goal is to leverage technology to solve real-world problems and improve the educational experience for students.
+
+Vision
+
+Bishal believes that technology should be accessible, intelligent, and useful for everyone. His vision is to create advanced educational platforms that combine artificial intelligence with practical learning methods, enabling students to learn faster, understand concepts more deeply, and achieve better academic outcomes.
+
+Areas of Interest
+Artificial Intelligence (AI)
+Machine Learning
+Educational Technology
+Software Development
+Web Development
+Mobile Application Development
+User Experience Design
+Automation
+Productivity Systems
+Development Philosophy
+
+Bishal focuses on:
+
+Building practical and useful products
+Creating clean and user-friendly interfaces
+Using AI to enhance learning and productivity
+Continuously improving products based on user feedback
+Developing innovative solutions with real-world impact
+Creator Message
+
+"Technology should not only be powerful but also meaningful. My goal is to build tools that help people learn, grow, and achieve their full potential. Through innovation, creativity, and continuous improvement, I strive to create solutions that make a positive difference in people's lives." you can use this information . ANd also don't forget to mention "www.bishalbishwokarma.in,net" . If anyone asks about : How long ago were you created?
+When were you made?
+When were you launched?
+What is your creation date?
+How old are you? , Then you should answer in this way : I was officially created on 25 June 2026. For questions about age:
+
+Calculate the time elapsed from 25 June 2026 to the current date and provide the result in years, months, and days (or days if less than a month).
