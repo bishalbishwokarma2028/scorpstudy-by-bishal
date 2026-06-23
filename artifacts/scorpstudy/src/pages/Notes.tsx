@@ -5,9 +5,8 @@ import { Input } from "@/components/ui/input";
 import { useCreateNote, useUpdateNote, useDeleteNote, useListNotes, useAiEnhanceNotes } from "@workspace/api-client-react";
 import {
   BookOpen, Loader2, Save, Sparkles, Wand2, Search, Plus, Trash2, FileText,
-  ArrowLeft, Eye, Edit3, Bold, Italic, List, ListOrdered, Quote, Code2,
-  Download, ChevronDown, Star, StarOff, Heading1, Heading2, Check, Clock,
-  Hash, AlignLeft,
+  ArrowLeft, Eye, Edit3, Bold, Italic, Download, ChevronDown, Star, StarOff,
+  AlignLeft, Clock, Check, X,
 } from "lucide-react";
 import { toast } from "sonner";
 import { format, formatDistanceToNow } from "date-fns";
@@ -17,12 +16,12 @@ import remarkGfm from "remark-gfm";
 const BASE = import.meta.env.BASE_URL?.replace(/\/$/, "") ?? "";
 
 const NOTE_COLORS = [
-  { id: "white", bg: "bg-white", border: "border-slate-200", dot: "bg-slate-300" },
-  { id: "blue", bg: "bg-blue-50", border: "border-blue-200", dot: "bg-blue-400" },
-  { id: "green", bg: "bg-green-50", border: "border-green-200", dot: "bg-green-400" },
-  { id: "yellow", bg: "bg-yellow-50", border: "border-yellow-200", dot: "bg-yellow-400" },
-  { id: "purple", bg: "bg-purple-50", border: "border-purple-200", dot: "bg-purple-400" },
-  { id: "pink", bg: "bg-pink-50", border: "border-pink-200", dot: "bg-pink-400" },
+  { id: "white",  bg: "bg-white",       border: "border-slate-200",  dot: "bg-slate-300" },
+  { id: "blue",   bg: "bg-blue-50",     border: "border-blue-200",   dot: "bg-blue-400" },
+  { id: "green",  bg: "bg-green-50",    border: "border-green-200",  dot: "bg-green-400" },
+  { id: "yellow", bg: "bg-yellow-50",   border: "border-yellow-200", dot: "bg-yellow-400" },
+  { id: "purple", bg: "bg-purple-50",   border: "border-purple-200", dot: "bg-purple-400" },
+  { id: "pink",   bg: "bg-pink-50",     border: "border-pink-200",   dot: "bg-pink-400" },
 ];
 
 const TEMPLATES: Record<string, { label: string; icon: string; content: string }> = {
@@ -48,6 +47,66 @@ const TEMPLATES: Record<string, { label: string; icon: string; content: string }
   },
 };
 
+// Student-focused smart inserts (replaces basic markdown toolbar)
+const SMART_INSERTS = [
+  {
+    id: "important",
+    label: "Important",
+    emoji: "📌",
+    title: "Mark as Important",
+    insert: () => `\n\n> 📌 **Important:** `,
+  },
+  {
+    id: "keyconcept",
+    label: "Key Concept",
+    emoji: "💡",
+    title: "Key Concept block",
+    insert: () => `\n\n> 💡 **Key Concept:** `,
+  },
+  {
+    id: "question",
+    label: "Study Q",
+    emoji: "❓",
+    title: "Self-study question",
+    insert: () => `\n\n> ❓ **Study Question:** \n> 📝 *Answer:* `,
+  },
+  {
+    id: "definition",
+    label: "Definition",
+    emoji: "📖",
+    title: "Term definition",
+    insert: () => `\n\n> 📖 **Definition — :** \n> `,
+  },
+  {
+    id: "formula",
+    label: "Formula",
+    emoji: "🔢",
+    title: "Math / formula block",
+    insert: () => `\n\n**Formula:**\n\`\`\`\n\n\`\`\`\n`,
+  },
+  {
+    id: "date",
+    label: "Date",
+    emoji: "📅",
+    title: "Insert today's date",
+    insert: () => `📅 *${format(new Date(), "MMMM d, yyyy")}* `,
+  },
+  {
+    id: "table",
+    label: "Table",
+    emoji: "📊",
+    title: "Insert comparison table",
+    insert: () => `\n\n| Concept | Description | Example |\n|---------|-------------|--------|\n| | | |\n| | | |\n`,
+  },
+  {
+    id: "task",
+    label: "Task",
+    emoji: "✅",
+    title: "Add task / checklist item",
+    insert: () => `\n- [ ] `,
+  },
+];
+
 function loadNoteColors(): Record<number, string> {
   try { return JSON.parse(localStorage.getItem("scorpstudy-note-colors") || "{}"); } catch { return {}; }
 }
@@ -59,6 +118,33 @@ function loadPinned(): number[] {
 }
 function savePinned(pins: number[]) {
   localStorage.setItem("scorpstudy-pinned-notes", JSON.stringify(pins));
+}
+
+/** Confirmation dialog component */
+function ConfirmDialog({ message, onConfirm, onCancel }: { message: string; onConfirm: () => void; onCancel: () => void }) {
+  return (
+    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4" onClick={onCancel}>
+      <div className="bg-white rounded-2xl shadow-2xl p-6 max-w-sm w-full" onClick={e => e.stopPropagation()}>
+        <div className="flex items-start gap-3 mb-4">
+          <div className="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center shrink-0">
+            <Trash2 className="w-5 h-5 text-red-500" />
+          </div>
+          <div>
+            <h3 className="font-bold text-slate-900 text-base">Are you sure?</h3>
+            <p className="text-sm text-slate-500 mt-1">{message}</p>
+          </div>
+        </div>
+        <div className="flex gap-2 justify-end">
+          <Button variant="outline" size="sm" onClick={onCancel} className="gap-1">
+            <X className="w-4 h-4" /> Cancel
+          </Button>
+          <Button size="sm" onClick={onConfirm} className="bg-red-500 hover:bg-red-600 gap-1">
+            <Trash2 className="w-4 h-4" /> Yes, Delete
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
 }
 
 export default function Notes() {
@@ -74,9 +160,16 @@ export default function Notes() {
   const [pinned, setPinned] = useState(loadPinned);
   const [aiLoading, setAiLoading] = useState<"enhance" | "summarize" | "quiz" | null>(null);
   const [quizModal, setQuizModal] = useState<{ questions: { question: string; options: string[]; correctAnswer: string }[] } | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState<{ id: number; title: string } | null>(null);
 
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const autoSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // --- Stale-closure fix: keep a ref that always points to the latest doSave ---
+  const latestSaveStateRef = useRef({ title, content, selectedNoteId });
+  useEffect(() => {
+    latestSaveStateRef.current = { title, content, selectedNoteId };
+  });
 
   const { data: notes, isLoading, refetch } = useListNotes(search ? { search } : undefined);
   const createNote = useCreateNote();
@@ -86,7 +179,6 @@ export default function Notes() {
 
   const isEditing = selectedNoteId !== null;
 
-  // Sort notes: pinned first, then by date
   const sortedNotes = notes ? [...notes].sort((a, b) => {
     const aPinned = pinned.includes(a.id) ? 1 : 0;
     const bPinned = pinned.includes(b.id) ? 1 : 0;
@@ -101,6 +193,36 @@ export default function Notes() {
     }
   }, [selectedNoteId, notes]);
 
+  /**
+   * doSave — reads from the ref so it always operates on the LATEST state,
+   * even when called from inside a stale setTimeout closure.
+   */
+  const doSave = useCallback(async (silent = false) => {
+    const { title: t, content: c, selectedNoteId: sid } = latestSaveStateRef.current;
+    if (!t.trim() && !c.trim()) { setSaveStatus("saved"); return; }
+    if (!t.trim()) {
+      if (!silent) toast.error("Title is required");
+      setSaveStatus("unsaved");
+      return;
+    }
+    try {
+      if (sid !== null) {
+        await updateNote.mutateAsync({ id: sid, data: { title: t, content: c } });
+      } else {
+        const newNote = await createNote.mutateAsync({ data: { title: t, content: c } });
+        setSelectedNoteId((newNote as { id: number }).id);
+        setShowEditor(true);
+      }
+      setSaveStatus("saved");
+      if (!silent) toast.success(sid !== null ? "Note updated!" : "Note created!");
+      refetch();
+    } catch {
+      setSaveStatus("unsaved");
+      if (!silent) toast.error("Failed to save note");
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const triggerAutoSave = useCallback(() => {
     setSaveStatus("unsaved");
     if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current);
@@ -108,31 +230,7 @@ export default function Notes() {
       setSaveStatus("saving");
       await doSave(true);
     }, 1800);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [title, content, selectedNoteId]);
-
-  const doSave = async (silent = false) => {
-    if (!title.trim() && !content.trim()) { setSaveStatus("saved"); return; }
-    if (!title.trim()) {
-      if (!silent) toast.error("Title is required");
-      setSaveStatus("unsaved");
-      return;
-    }
-    try {
-      if (isEditing) {
-        await updateNote.mutateAsync({ id: selectedNoteId, data: { title, content } });
-      } else {
-        const newNote = await createNote.mutateAsync({ data: { title, content } });
-        setSelectedNoteId((newNote as { id: number }).id);
-      }
-      setSaveStatus("saved");
-      if (!silent) toast.success(isEditing ? "Note updated!" : "Note created!");
-      refetch();
-    } catch {
-      setSaveStatus("unsaved");
-      if (!silent) toast.error("Failed to save note");
-    }
-  };
+  }, [doSave]);
 
   const handleNew = () => {
     setSelectedNoteId(null);
@@ -151,9 +249,15 @@ export default function Notes() {
 
   const handleBack = () => setShowEditor(false);
 
-  const handleDelete = async (id: number, e: React.MouseEvent) => {
+  const handleDeleteRequest = (id: number, noteTitle: string, e: React.MouseEvent) => {
     e.stopPropagation();
-    if (!confirm("Delete this note?")) return;
+    setConfirmDelete({ id, title: noteTitle });
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!confirmDelete) return;
+    const { id } = confirmDelete;
+    setConfirmDelete(null);
     try {
       await deleteNote.mutateAsync({ id });
       if (selectedNoteId === id) { setSelectedNoteId(null); setTitle(""); setContent(""); setShowEditor(false); }
@@ -165,11 +269,21 @@ export default function Notes() {
   const handleAiAction = async (mode: "enhance" | "summarize") => {
     if (!content.trim()) { toast.error("Please enter some content first"); return; }
     setAiLoading(mode);
+    // Auto-generate a title if missing so the note can be saved after AI action
+    if (!title.trim()) {
+      const autoTitle = content.trim().split("\n")[0].replace(/^[#\s*_]+/, "").slice(0, 60) || `My Note — ${format(new Date(), "MMM d")}`;
+      setTitle(autoTitle);
+    }
     try {
       const res = await enhanceNotes.mutateAsync({ data: { content, mode } });
       setContent(res.content);
-      triggerAutoSave();
+      setSaveStatus("unsaved");
       toast.success(mode === "enhance" ? "✨ Notes enhanced by AI!" : "📝 Notes summarized!");
+      // Immediately save so the note appears in the list
+      setTimeout(async () => {
+        setSaveStatus("saving");
+        await doSave(true);
+      }, 100);
     } catch { toast.error("AI action failed"); }
     finally { setAiLoading(null); }
   };
@@ -220,7 +334,6 @@ export default function Notes() {
     URL.revokeObjectURL(url);
   };
 
-  // Formatting toolbar
   const insertFormat = (prefix: string, suffix = "", placeholder = "text") => {
     const el = textareaRef.current;
     if (!el) return;
@@ -228,10 +341,30 @@ export default function Notes() {
     const sel = content.slice(s, e) || placeholder;
     const newContent = content.slice(0, s) + prefix + sel + suffix + content.slice(e);
     setContent(newContent);
-    triggerAutoSave();
+    setSaveStatus("unsaved");
+    if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current);
+    autoSaveTimer.current = setTimeout(async () => { setSaveStatus("saving"); await doSave(true); }, 1800);
     setTimeout(() => {
       el.focus();
       el.setSelectionRange(s + prefix.length, s + prefix.length + sel.length);
+    }, 0);
+  };
+
+  const insertSmartBlock = (insertFn: () => string) => {
+    const el = textareaRef.current;
+    const text = insertFn();
+    if (!el) {
+      setContent(prev => prev + text);
+      triggerAutoSave();
+      return;
+    }
+    const pos = el.selectionStart;
+    const newContent = content.slice(0, pos) + text + content.slice(pos);
+    setContent(newContent);
+    triggerAutoSave();
+    setTimeout(() => {
+      el.focus();
+      el.setSelectionRange(pos + text.length, pos + text.length);
     }, 0);
   };
 
@@ -239,7 +372,9 @@ export default function Notes() {
   const chars = content.length;
   const readMins = Math.max(1, Math.ceil(words / 200));
 
-  const noteColor = selectedNoteId ? (NOTE_COLORS.find(c => c.id === (noteColors[selectedNoteId] || "white")) ?? NOTE_COLORS[0]) : NOTE_COLORS[0];
+  const noteColor = selectedNoteId
+    ? (NOTE_COLORS.find(c => c.id === (noteColors[selectedNoteId] || "white")) ?? NOTE_COLORS[0])
+    : NOTE_COLORS[0];
 
   const NotesList = () => (
     <div className="flex flex-col h-full bg-white border border-slate-200 rounded-xl overflow-hidden shadow-sm">
@@ -292,12 +427,11 @@ export default function Notes() {
                       <button onClick={(e) => togglePin(note.id, e)} className="text-slate-300 hover:text-amber-400 transition-colors">
                         {isPinned ? <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400" /> : <StarOff className="w-3.5 h-3.5" />}
                       </button>
-                      <button onClick={(e) => handleDelete(note.id, e)} className="text-slate-300 hover:text-red-500 transition-colors">
+                      <button onClick={(e) => handleDeleteRequest(note.id, note.title, e)} className="text-slate-300 hover:text-red-500 transition-colors">
                         <Trash2 className="w-3.5 h-3.5" />
                       </button>
                     </div>
                   </div>
-                  {/* Color dots */}
                   <div className="flex gap-1 mt-2 opacity-0 group-hover:opacity-100 transition-opacity" onClick={e => e.stopPropagation()}>
                     {NOTE_COLORS.map(c => (
                       <button key={c.id} onClick={() => setNoteColor(note.id, c.id)}
@@ -328,29 +462,38 @@ export default function Notes() {
             placeholder="Note Title"
             className={`flex-1 text-lg font-bold border-none shadow-none focus-visible:ring-0 px-0 bg-transparent min-w-0 ${noteColor.bg}`}
           />
-          {/* Save status */}
           <div className="flex items-center gap-1 text-[11px] text-slate-400 shrink-0">
-            {saveStatus === "saving" && <><Loader2 className="w-3 h-3 animate-spin" /><span>Saving...</span></>}
-            {saveStatus === "saved" && <><Check className="w-3 h-3 text-green-500" /><span className="text-green-500">Saved</span></>}
+            {saveStatus === "saving"  && <><Loader2 className="w-3 h-3 animate-spin" /><span>Saving...</span></>}
+            {saveStatus === "saved"   && <><Check className="w-3 h-3 text-green-500" /><span className="text-green-500">Saved</span></>}
             {saveStatus === "unsaved" && <><span className="w-1.5 h-1.5 rounded-full bg-orange-400 animate-pulse" /><span>Unsaved</span></>}
           </div>
         </div>
 
-        {/* Formatting toolbar */}
+        {/* ── Smart student toolbar (replaces old H1/H2/list/quote/code toolbar) ── */}
         {!previewMode && (
-          <div className="flex items-center gap-0.5 flex-wrap">
+          <div className="flex items-center gap-0.5 flex-wrap mb-2">
+            {/* Keep Bold & Italic — universal essentials */}
             <button onClick={() => insertFormat("**", "**", "bold text")} title="Bold (Ctrl+B)" className="h-7 w-7 rounded hover:bg-white/70 flex items-center justify-center text-slate-600 hover:text-slate-900 transition-colors"><Bold className="w-3.5 h-3.5" /></button>
-            <button onClick={() => insertFormat("*", "*", "italic text")} title="Italic" className="h-7 w-7 rounded hover:bg-white/70 flex items-center justify-center text-slate-600 hover:text-slate-900 transition-colors"><Italic className="w-3.5 h-3.5" /></button>
-            <button onClick={() => insertFormat("## ", "", "Heading")} title="H2" className="h-7 w-7 rounded hover:bg-white/70 flex items-center justify-center text-slate-600 hover:text-slate-900 transition-colors"><Heading1 className="w-3.5 h-3.5" /></button>
-            <button onClick={() => insertFormat("### ", "", "Heading")} title="H3" className="h-7 w-7 rounded hover:bg-white/70 flex items-center justify-center text-slate-600 hover:text-slate-900 transition-colors"><Heading2 className="w-3.5 h-3.5" /></button>
-            <button onClick={() => insertFormat("- ", "", "list item")} title="Bullet list" className="h-7 w-7 rounded hover:bg-white/70 flex items-center justify-center text-slate-600 hover:text-slate-900 transition-colors"><List className="w-3.5 h-3.5" /></button>
-            <button onClick={() => insertFormat("1. ", "", "list item")} title="Numbered list" className="h-7 w-7 rounded hover:bg-white/70 flex items-center justify-center text-slate-600 hover:text-slate-900 transition-colors"><ListOrdered className="w-3.5 h-3.5" /></button>
-            <button onClick={() => insertFormat("> ", "", "blockquote")} title="Quote" className="h-7 w-7 rounded hover:bg-white/70 flex items-center justify-center text-slate-600 hover:text-slate-900 transition-colors"><Quote className="w-3.5 h-3.5" /></button>
-            <button onClick={() => insertFormat("`", "`", "code")} title="Inline code" className="h-7 w-7 rounded hover:bg-white/70 flex items-center justify-center text-slate-600 hover:text-slate-900 transition-colors"><Code2 className="w-3.5 h-3.5" /></button>
-            <button onClick={() => insertFormat("| ", " | |\n| --- | --- |", "Header")} title="Table" className="h-7 w-7 rounded hover:bg-white/70 flex items-center justify-center text-slate-600 hover:text-slate-900 transition-colors"><Hash className="w-3.5 h-3.5" /></button>
-            <button onClick={() => insertFormat("- [ ] ", "", "task")} title="Checkbox" className="h-7 w-7 rounded hover:bg-white/70 flex items-center justify-center text-slate-600 hover:text-slate-900 transition-colors"><Check className="w-3.5 h-3.5" /></button>
+            <button onClick={() => insertFormat("*", "*", "italic text")} title="Italic (Ctrl+I)" className="h-7 w-7 rounded hover:bg-white/70 flex items-center justify-center text-slate-600 hover:text-slate-900 transition-colors"><Italic className="w-3.5 h-3.5" /></button>
+
             <div className="mx-1 w-px h-5 bg-slate-200" />
-            {/* Templates */}
+
+            {/* Smart student inserts */}
+            {SMART_INSERTS.map(si => (
+              <button
+                key={si.id}
+                onClick={() => insertSmartBlock(si.insert)}
+                title={si.title}
+                className="h-7 px-1.5 rounded hover:bg-white/70 flex items-center gap-0.5 text-[11px] font-medium text-slate-600 hover:text-slate-900 transition-colors"
+              >
+                <span>{si.emoji}</span>
+                <span className="hidden sm:inline">{si.label}</span>
+              </button>
+            ))}
+
+            <div className="mx-1 w-px h-5 bg-slate-200" />
+
+            {/* Templates dropdown */}
             <div className="relative">
               <button onClick={() => setShowTemplates(!showTemplates)} className="h-7 px-2 rounded hover:bg-white/70 flex items-center gap-1 text-xs text-slate-600 hover:text-slate-900 transition-colors">
                 <AlignLeft className="w-3.5 h-3.5" /> Template <ChevronDown className="w-3 h-3" />
@@ -369,8 +512,7 @@ export default function Notes() {
         )}
 
         {/* Action bar */}
-        <div className="flex items-center gap-2 flex-wrap mt-2">
-          {/* Write/Preview toggle */}
+        <div className="flex items-center gap-2 flex-wrap">
           <div className="flex bg-white/50 rounded-lg border border-slate-200 p-0.5">
             <button onClick={() => setPreviewMode(false)} className={`flex items-center gap-1 px-2 py-1 rounded-md text-xs transition-colors ${!previewMode ? "bg-white text-slate-800 shadow-sm font-medium" : "text-slate-400 hover:text-slate-600"}`}>
               <Edit3 className="w-3 h-3" /> Write
@@ -391,7 +533,7 @@ export default function Notes() {
             </Button>
             <Button variant="ghost" size="sm" className="h-7 text-xs text-violet-600 hover:bg-violet-50 gap-1" onClick={handleGenerateQuiz} disabled={aiLoading !== null || !content.trim()}>
               {aiLoading === "quiz" ? <Loader2 className="w-3 h-3 animate-spin" /> : <FileText className="w-3 h-3" />}
-              Quiz
+              Quiz Me
             </Button>
             <Button variant="ghost" size="sm" className="h-7 text-xs text-slate-500 hover:bg-slate-100 gap-1" onClick={exportNote} disabled={!content.trim()}>
               <Download className="w-3 h-3" /> Export
@@ -408,7 +550,9 @@ export default function Notes() {
       <div className="flex-1 overflow-hidden relative">
         {previewMode ? (
           <div className={`h-full overflow-y-auto p-5 prose prose-sm max-w-none prose-headings:text-slate-800 prose-p:text-slate-700 prose-strong:text-slate-900 prose-code:bg-slate-100 prose-code:px-1 prose-code:rounded prose-blockquote:border-pink-300 prose-blockquote:text-slate-600 ${noteColor.bg}`}>
-            {content ? <ReactMarkdown remarkPlugins={[remarkGfm]}>{content}</ReactMarkdown> : <p className="text-slate-300 italic">Nothing to preview yet. Switch to Write mode and start typing.</p>}
+            {content
+              ? <ReactMarkdown remarkPlugins={[remarkGfm]}>{content}</ReactMarkdown>
+              : <p className="text-slate-300 italic">Nothing to preview yet. Switch to Write mode and start typing.</p>}
           </div>
         ) : (
           <textarea
@@ -422,7 +566,7 @@ export default function Notes() {
                 if (e.key === "s") { e.preventDefault(); doSave(); }
               }
             }}
-            placeholder={`Start writing your notes...\n\nTips:\n• Use ## for headings, **text** for bold, *text* for italic\n• Use the toolbar above for quick formatting\n• Ctrl+S to save, Ctrl+B for bold, Ctrl+I for italic\n• Click 'Template' to start with a structured format`}
+            placeholder={`Start writing your notes here...\n\nPro tips:\n• Use the smart toolbar above to insert key concepts, important callouts, formulas, tables & tasks\n• Click "Template" for pre-built Lecture, Cornell, Study Guide formats\n• Ctrl+S saves · Ctrl+B bold · Ctrl+I italic\n• Switch to Preview to see your formatted notes rendered beautifully`}
             className={`w-full h-full resize-none border-none outline-none p-5 text-sm leading-relaxed font-mono bg-transparent text-slate-800 placeholder:text-slate-300`}
           />
         )}
@@ -431,7 +575,7 @@ export default function Notes() {
       {/* Footer with stats */}
       <div className={`px-5 py-2 border-t ${noteColor.border} flex items-center justify-between text-[11px] text-slate-400 ${noteColor.bg}`}>
         <div className="flex items-center gap-4">
-          <span className="flex items-center gap-1"><AlignLeft className="w-3 h-3" /> {words} words</span>
+          <span>{words} words</span>
           <span>{chars} chars</span>
           <span className="flex items-center gap-1"><Clock className="w-3 h-3" /> ~{readMins} min read</span>
         </div>
@@ -444,6 +588,15 @@ export default function Notes() {
 
   return (
     <DashboardLayout>
+      {/* Confirm Delete Dialog */}
+      {confirmDelete && (
+        <ConfirmDialog
+          message={`Do you want to delete "${confirmDelete.title}"? This action cannot be undone.`}
+          onConfirm={handleDeleteConfirm}
+          onCancel={() => setConfirmDelete(null)}
+        />
+      )}
+
       {/* Quiz Modal */}
       {quizModal && (
         <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4" onClick={() => setQuizModal(null)}>
@@ -480,7 +633,7 @@ export default function Notes() {
                 <BookOpen className="w-10 h-10 text-pink-300" />
               </div>
               <h3 className="text-base font-bold text-slate-700 mb-2">Select a note or create a new one</h3>
-              <p className="text-sm text-slate-400 mb-6 max-w-xs">AI-powered notes with markdown support, auto-save, templates, and more.</p>
+              <p className="text-sm text-slate-400 mb-6 max-w-xs">Smart notes with AI enhance, summaries, quiz generation, templates and more.</p>
               <Button onClick={handleNew} className="bg-pink-600 hover:bg-pink-700 gap-2">
                 <Plus className="w-4 h-4" /> Create New Note
               </Button>

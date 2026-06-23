@@ -31,7 +31,7 @@ export default function History() {
     .filter(item => filter === "all" || item.type === filter);
 
   const handleDelete = async (item: { id: string; type: string; title: string }) => {
-    if (!confirm(`Delete "${item.title}"? This cannot be undone.`)) return;
+    if (!confirm(`Are you sure? Do you want to delete "${item.title}"?\n\nThis action cannot be undone.`)) return;
     const config = typeConfig[item.type as keyof typeof typeConfig];
     if (!config) return;
     setDeletingId(item.id);
