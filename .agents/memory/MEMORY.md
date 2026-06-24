@@ -1,3 +1,4 @@
 - [Vite config PORT issue](vite-config-port.md) — vite.config.ts must not throw when PORT/BASE_PATH missing; use optional defaults for Vercel/CI builds.
+- [Vercel output directory](vercel-output.md) — Vite outDir must be `dist` (not `dist/public`); vercel.json outputDirectory must be `artifacts/scorpstudy/dist` or Vercel throws "No Output Directory named 'public' found".
 - [DB tables migration](db-migration.md) — DB tables (chats, summaries, quizzes, flashcards) must be created by running `pnpm --filter @workspace/db db:push-force` before the API server works; tables are NOT auto-created.
 - [Multi-provider AI fallback](ai-provider.md) — All AI calls go through lib/ai-provider.ts which tries Groq keys → Gemini → OpenAI → HuggingFace; never call groq directly from routes.
