@@ -1,0 +1,101 @@
+You are improving an existing AI chat application built on Replit using Supabase (FREE plan with 0.5GB storage limit).
+
+Your task is ONLY to optimize Supabase usage and implement an efficient cache system.
+
+----------------------------------
+
+1. CORE GOAL
+
+Make the system:
+- Fast
+- Lightweight
+- Storage efficient
+- ChatGPT-like in behavior
+- Optimized for low database usage
+
+----------------------------------
+
+2. CHAT HISTORY OPTIMIZATION (SUPABASE)
+
+- Store chat history in Supabase
+- BUT strictly limit storage usage:
+
+Rules:
+- Keep only last 50–100 messages per user
+- Automatically delete older messages (FIFO method)
+- Do NOT store full long conversations
+- Keep messages short and optimized
+
+- Add timestamp fields:
+  → created_at
+  → last_accessed_at
+
+- Every time user interacts:
+  → update last_accessed_at
+
+- Implement cleanup rule:
+  → Delete chat history older than 30 days AND not accessed
+
+Cleanup can run:
+- on user login OR
+- scheduled daily job
+
+----------------------------------
+
+3. CACHE SYSTEM (VERY IMPORTANT)
+
+Create a separate "cache" table in Supabase:
+
+Fields:
+- question (short text only)
+- answer (short optimized response)
+- created_at
+
+Rules:
+- Before any AI response:
+  → check cache first
+  → if found → return instantly (NO processing needed)
+  → if not found → proceed normally and store result
+
+- Only cache useful study-related questions
+- DO NOT cache:
+  → greetings
+  → small talk
+  → repeated spam
+  → personal messages
+
+- Limit cache size:
+  → max 500–800 entries
+
+- Auto delete old cache entries using FIFO (first in first out)
+
+----------------------------------
+
+4. STORAGE SAFETY RULES
+
+Because Supabase is limited (0.5GB):
+
+- Avoid storing large text responses
+- Avoid storing full conversation history
+- Keep database entries minimal and lightweight
+- Prefer deleting old data over accumulating it
+
+----------------------------------
+
+5. PERFORMANCE GOAL
+
+The system should:
+- Reduce database usage as much as possible
+- Increase response speed using cache
+- Keep Supabase clean and optimized
+- Maintain smooth ChatGPT-like experience
+
+----------------------------------
+
+6. FINAL SYSTEM BEHAVIOR
+
+- Fast responses using cache
+- Lightweight chat history storage
+- Automatic cleanup of old data
+- No database overflow
+- Efficient and production-ready structure

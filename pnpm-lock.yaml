@@ -169,6 +169,9 @@ importers:
       '@google/generative-ai':
         specifier: ^0.24.1
         version: 0.24.1
+      '@supabase/supabase-js':
+        specifier: ^2.108.2
+        version: 2.108.2
       '@workspace/api-zod':
         specifier: workspace:*
         version: link:../../lib/api-zod
