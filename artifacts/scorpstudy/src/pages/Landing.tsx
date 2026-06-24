@@ -324,7 +324,7 @@ export default function Landing() {
             </motion.div>
             <motion.div {...fade(0.05)} className="mb-4">
               <span className="inline-flex items-center gap-1.5 bg-violet-50 text-violet-700 text-xs font-bold px-4 py-1.5 rounded-full border border-violet-200">
-                <Zap className="w-3.5 h-3.5" /> AI-Powered Study Platform
+                <Zap className="w-3.5 h-3.5" /> Bishal's AI Learning Platform
               </span>
             </motion.div>
             <motion.h1 {...fade(0.1)} className="text-4xl md:text-6xl font-extrabold text-slate-900 tracking-tight leading-tight mb-5">

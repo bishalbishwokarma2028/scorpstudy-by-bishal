@@ -253,6 +253,21 @@ router.post("/ai/summarize", async (req, res): Promise<void> => {
     return;
   }
 
+  // ── Daily quota check ──────────────────────────────────────────────────
+  const userId = typeof req.body?.userId === "string" ? req.body.userId : null;
+  if (userId) {
+    const quota = await checkAndIncrementLimit(userId);
+    if (!quota.allowed) {
+      res.status(429).json({
+        error: "quota_exceeded",
+        message: "You have crossed today's free quota limit. Try again tomorrow.",
+        used: quota.used,
+        limit: quota.limit,
+      });
+      return;
+    }
+  }
+
   const prompt = `You are an expert study assistant. Analyze the following text and provide:
 1. A comprehensive summary paragraph
 2. 5-8 key points as bullet points  
@@ -301,6 +316,7 @@ async function generateQuizChunk(
   questionType: string,
   chunkNum: number,
   totalChunks: number,
+  isLongType = false,
 ): Promise<QuizQuestion[]> {
   const subtopicHint =
     totalChunks > 1
@@ -321,7 +337,8 @@ Output ONLY this JSON (no extra text):
 
 Generate ALL ${count} questions now:`;
 
-  const raw = await aiCompletionJSON(prompt, Math.min(8192, count * 150 + 200));
+  const baseTokens = isLongType ? count * 350 + 500 : count * 150 + 200;
+  const raw = await aiCompletionJSON(prompt, Math.min(8192, baseTokens));
   try {
     const result = JSON.parse(raw);
     return Array.isArray(result.questions) ? result.questions : [];
@@ -338,18 +355,47 @@ router.post("/ai/quiz", async (req, res): Promise<void> => {
     return;
   }
 
+  // ── Daily quota check ──────────────────────────────────────────────────
+  const userId = typeof req.body?.userId === "string" ? req.body.userId : null;
+  if (userId) {
+    const quota = await checkAndIncrementLimit(userId);
+    if (!quota.allowed) {
+      res.status(429).json({
+        error: "quota_exceeded",
+        message: "You have crossed today's free quota limit. Try again tomorrow.",
+        used: quota.used,
+        limit: quota.limit,
+      });
+      return;
+    }
+  }
+
   const { difficulty, type } = parsed.data;
   let { topic, count } = parsed.data;
 
   topic = topic.replace(/\[variation-seed:[^\]]+\]/g, "").trim();
-  count = Math.max(1, Math.min(100, count));
+  count = Math.max(1, Math.min(50, count));
 
-  const questionType =
-    type === "multiple-choice" || type === "Multiple Choice"
-      ? "multiple choice (4 options A/B/C/D)"
-      : type === "true-false" || type === "True/False" || type === "True-False"
-      ? "true/false (options: True or False only)"
-      : "mixed (some multiple choice with 4 options, some true/false)";
+  // ── Question type → prompt description ──────────────────────────────
+  const QUIZ_TYPE_MAP: Record<string, string> = {
+    "Multiple Choice":       "multiple choice (4 options A/B/C/D)",
+    "multiple-choice":       "multiple choice (4 options A/B/C/D)",
+    "True-False":            "true/false (options: True or False only)",
+    "True/False":            "true/false (options: True or False only)",
+    "true-false":            "true/false (options: True or False only)",
+    "Mixed":                 "mixed (some multiple choice with 4 options, some true/false)",
+    "Very Short Question":   "multiple choice (4 options A/B/C/D) where EVERY question must be extremely brief and direct — under 10 words per question, factual and to the point",
+    "Short Question":        "multiple choice (4 options A/B/C/D) where each question is concise and clear — 1 short sentence per question",
+    "Long Question":         "multiple choice (4 options A/B/C/D) where each question includes a 3–5 sentence scenario or context before asking the question",
+    "Very Long Question":    "multiple choice (4 options A/B/C/D) where each question includes a full paragraph (100+ words) as a passage or case study, followed by the question",
+    "Exam-Focused Question": "multiple choice (4 options A/B/C/D) styled as formal academic exam questions — use precise technical language and standard exam phrasing like 'Which of the following…', 'According to…', 'In the context of…'",
+    "Tricky Question":       "multiple choice (4 options A/B/C/D) that are deliberately tricky and challenging — use subtle distinctions, common misconceptions as wrong options, and questions that require deep understanding to avoid being misled",
+  };
+
+  const questionType = QUIZ_TYPE_MAP[type] ?? "multiple choice (4 options A/B/C/D)";
+
+  // Use more tokens for long/very-long types
+  const isLongType = ["Long Question", "Very Long Question"].includes(type);
 
   const CHUNK_SIZE = 30;
   const allQuestions: QuizQuestion[] = [];
@@ -359,7 +405,7 @@ router.post("/ai/quiz", async (req, res): Promise<void> => {
     const remaining = count - allQuestions.length;
     if (remaining <= 0) break;
     const chunkCount = Math.min(CHUNK_SIZE, remaining);
-    const questions = await generateQuizChunk(topic, chunkCount, difficulty, questionType, i + 1, totalChunks);
+    const questions = await generateQuizChunk(topic, chunkCount, difficulty, questionType, i + 1, totalChunks, isLongType);
     allQuestions.push(...questions);
   }
 

@@ -4,11 +4,14 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { useAiGenerateQuiz, useSaveQuizResult } from "@workspace/api-client-react";
 import { CheckSquare, Loader2, Save, RefreshCw, CheckCircle2, XCircle, Trophy, RotateCcw } from "lucide-react";
 import { toast } from "sonner";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { useAuth } from "@/contexts/AuthContext";
+import { useSaveQuizResult } from "@workspace/api-client-react";
+
+const BASE = import.meta.env.BASE_URL?.replace(/\/$/, "") ?? "";
 
 interface QuizQuestion {
   question: string;
@@ -17,19 +20,33 @@ interface QuizQuestion {
   explanation: string;
 }
 
+const QUESTION_COUNTS = ["15", "30", "50"];
+
+const QUESTION_TYPES = [
+  { value: "Multiple Choice",       label: "Multiple Choice" },
+  { value: "True-False",            label: "True / False" },
+  { value: "Mixed",                 label: "Mixed" },
+  { value: "Very Short Question",   label: "Very Short Question" },
+  { value: "Short Question",        label: "Short Question" },
+  { value: "Long Question",         label: "Long Question" },
+  { value: "Very Long Question",    label: "Very Long Question" },
+  { value: "Exam-Focused Question", label: "Exam-Focused Question" },
+  { value: "Tricky Question",       label: "Tricky Question" },
+];
+
 export default function Quiz() {
-  const [topic, setTopic] = useState("");
-  const [count, setCount] = useState("15");
+  const { user } = useAuth();
+  const [topic, setTopic]       = useState("");
+  const [count, setCount]       = useState("15");
   const [difficulty, setDifficulty] = useState("Medium");
-  const [type, setType] = useState("Multiple Choice");
-  const [quizSeed, setQuizSeed] = useState(0);
+  const [type, setType]         = useState("Multiple Choice");
+  const [isGenerating, setIsGenerating] = useState(false);
 
   const [questions, setQuestions] = useState<QuizQuestion[]>([]);
-  const [answers, setAnswers] = useState<Record<number, string>>({});
+  const [answers, setAnswers]     = useState<Record<number, string>>({});
   const [isSubmitted, setIsSubmitted] = useState(false);
-  const [score, setScore] = useState(0);
+  const [score, setScore]         = useState(0);
 
-  const generateQuiz = useAiGenerateQuiz();
   const saveQuiz = useSaveQuizResult();
 
   const handleGenerate = async () => {
@@ -38,16 +55,37 @@ export default function Quiz() {
     setAnswers({});
     setIsSubmitted(false);
     setScore(0);
-    const newSeed = Date.now();
-    setQuizSeed(newSeed);
+    setIsGenerating(true);
+
     try {
-      const response = await generateQuiz.mutateAsync({
-        data: { topic: `${topic} [variation-seed:${newSeed}]`, count: parseInt(count), difficulty, type }
+      const seed = Date.now();
+      const res = await fetch(`${BASE}/api/ai/quiz`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          topic: `${topic} [variation-seed:${seed}]`,
+          count: parseInt(count),
+          difficulty,
+          type,
+          ...(user?.id ? { userId: user.id } : {}),
+        }),
       });
-      setQuestions(response.questions as QuizQuestion[]);
-      toast.success(`${response.questions.length} questions generated!`);
+
+      if (res.status === 429) {
+        const d = await res.json();
+        toast.error(d.message ?? "You have crossed today's free quota limit. Try again tomorrow.", { duration: 6000 });
+        return;
+      }
+      if (!res.ok) throw new Error("Failed");
+
+      const data = await res.json();
+      const qs = data.questions as QuizQuestion[];
+      setQuestions(qs);
+      toast.success(`${qs.length} questions generated!`);
     } catch {
       toast.error("Failed to generate quiz. Please try again.");
+    } finally {
+      setIsGenerating(false);
     }
   };
 
@@ -56,17 +94,17 @@ export default function Quiz() {
       toast.error("Please answer all questions before submitting");
       return;
     }
-    let calculatedScore = 0;
-    questions.forEach((q, i) => { if (answers[i] === q.correctAnswer) calculatedScore++; });
-    setScore(calculatedScore);
+    let s = 0;
+    questions.forEach((q, i) => { if (answers[i] === q.correctAnswer) s++; });
+    setScore(s);
     setIsSubmitted(true);
     try {
-      await saveQuiz.mutateAsync({ data: { topic, score: calculatedScore, total: questions.length, questions } });
+      await saveQuiz.mutateAsync({ data: { topic, score: s, total: questions.length, questions } });
       toast.success("Quiz results saved!");
-    } catch { }
+    } catch { /* silent */ }
   };
 
-  const pct = questions.length ? Math.round((score / questions.length) * 100) : 0;
+  const pct   = questions.length ? Math.round((score / questions.length) * 100) : 0;
   const grade = pct >= 90 ? "A+" : pct >= 80 ? "A" : pct >= 70 ? "B" : pct >= 60 ? "C" : "D";
 
   return (
@@ -89,23 +127,26 @@ export default function Quiz() {
             <CardContent className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="topic">Topic</Label>
-                <Input id="topic" placeholder="e.g., Cellular Respiration, World War II, React Hooks" value={topic}
-                  onChange={(e) => setTopic(e.target.value)} onKeyDown={(e) => e.key === "Enter" && handleGenerate()} />
+                <Input id="topic" placeholder="e.g., Cellular Respiration, World War II, React Hooks"
+                  value={topic} onChange={(e) => setTopic(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && handleGenerate()} />
               </div>
+
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                {/* Number of Questions — only 15 / 30 / 50 */}
                 <div className="space-y-2">
                   <Label>Number of Questions</Label>
                   <Select value={count} onValueChange={setCount}>
                     <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="15">15 Questions</SelectItem>
-                      <SelectItem value="30">30 Questions</SelectItem>
-                      <SelectItem value="50">50 Questions</SelectItem>
-                      <SelectItem value="80">80 Questions</SelectItem>
-                      <SelectItem value="100">100 Questions</SelectItem>
+                      {QUESTION_COUNTS.map((n) => (
+                        <SelectItem key={n} value={n}>{n} Questions</SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                 </div>
+
+                {/* Difficulty */}
                 <div className="space-y-2">
                   <Label>Difficulty</Label>
                   <Select value={difficulty} onValueChange={setDifficulty}>
@@ -117,27 +158,34 @@ export default function Quiz() {
                     </SelectContent>
                   </Select>
                 </div>
+
+                {/* Question Type */}
                 <div className="space-y-2">
                   <Label>Question Type</Label>
                   <Select value={type} onValueChange={setType}>
                     <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="Multiple Choice">Multiple Choice</SelectItem>
-                      <SelectItem value="True-False">True/False</SelectItem>
-                      <SelectItem value="Mixed">Mixed</SelectItem>
+                      {QUESTION_TYPES.map((t) => (
+                        <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                 </div>
               </div>
-              {parseInt(count) >= 50 && (
+
+              {/* Type hint */}
+              {["Long Question", "Very Long Question"].includes(type) && (
                 <div className="bg-amber-50 border border-amber-200 text-amber-800 text-sm rounded-lg px-4 py-2">
-                  ⚠️ Large quizzes ({count} questions) may take 30–60 seconds to generate.
+                  ⚠️ Long-form questions may take 30–60 seconds to generate.
                 </div>
               )}
             </CardContent>
             <CardFooter>
-              <Button onClick={handleGenerate} disabled={generateQuiz.isPending || !topic.trim()} className="w-full bg-violet-600 hover:bg-violet-700">
-                {generateQuiz.isPending ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Generating {count} Questions...</> : <><CheckSquare className="w-4 h-4 mr-2" />Generate Quiz</>}
+              <Button onClick={handleGenerate} disabled={isGenerating || !topic.trim()}
+                className="w-full bg-violet-600 hover:bg-violet-700">
+                {isGenerating
+                  ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Generating {count} Questions...</>
+                  : <><CheckSquare className="w-4 h-4 mr-2" />Generate Quiz</>}
               </Button>
             </CardFooter>
           </Card>
@@ -167,7 +215,13 @@ export default function Quiz() {
             </Card>
 
             {questions.map((q, qIndex) => (
-              <Card key={qIndex} className={`border-slate-200 transition-colors ${isSubmitted ? (answers[qIndex] === q.correctAnswer ? "border-green-300 bg-green-50/40" : "border-red-300 bg-red-50/40") : ""}`}>
+              <Card key={qIndex} className={`border-slate-200 transition-colors ${
+                isSubmitted
+                  ? answers[qIndex] === q.correctAnswer
+                    ? "border-green-300 bg-green-50/40"
+                    : "border-red-300 bg-red-50/40"
+                  : ""
+              }`}>
                 <CardHeader className="pb-3">
                   <CardTitle className="text-base leading-relaxed flex gap-2 font-medium">
                     <span className="text-violet-500 font-bold shrink-0">{qIndex + 1}.</span>
@@ -175,20 +229,31 @@ export default function Quiz() {
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <RadioGroup value={answers[qIndex] || ""} onValueChange={(val) => !isSubmitted && setAnswers(prev => ({ ...prev, [qIndex]: val }))} className="space-y-2">
+                  <RadioGroup value={answers[qIndex] || ""}
+                    onValueChange={(val) => !isSubmitted && setAnswers(prev => ({ ...prev, [qIndex]: val }))}
+                    className="space-y-2">
                     {q.options.map((opt, oIndex) => {
-                      let itemClass = "flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-colors text-sm";
+                      let cls = "flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-colors text-sm";
                       let icon = null;
                       if (!isSubmitted) {
-                        itemClass += answers[qIndex] === opt ? " border-violet-500 bg-violet-50 text-violet-900" : " border-slate-200 hover:bg-slate-50";
+                        cls += answers[qIndex] === opt
+                          ? " border-violet-500 bg-violet-50 text-violet-900"
+                          : " border-slate-200 hover:bg-slate-50";
                       } else {
-                        if (opt === q.correctAnswer) { itemClass += " border-green-500 bg-green-100 text-green-900"; icon = <CheckCircle2 className="w-4 h-4 text-green-600 ml-auto shrink-0" />; }
-                        else if (answers[qIndex] === opt) { itemClass += " border-red-500 bg-red-100 text-red-900"; icon = <XCircle className="w-4 h-4 text-red-600 ml-auto shrink-0" />; }
-                        else { itemClass += " border-slate-200 opacity-50"; }
+                        if (opt === q.correctAnswer) {
+                          cls += " border-green-500 bg-green-100 text-green-900";
+                          icon = <CheckCircle2 className="w-4 h-4 text-green-600 ml-auto shrink-0" />;
+                        } else if (answers[qIndex] === opt) {
+                          cls += " border-red-500 bg-red-100 text-red-900";
+                          icon = <XCircle className="w-4 h-4 text-red-600 ml-auto shrink-0" />;
+                        } else {
+                          cls += " border-slate-200 opacity-50";
+                        }
                       }
                       return (
-                        <Label key={oIndex} className={itemClass}>
-                          <RadioGroupItem value={opt} id={`q${qIndex}-o${oIndex}`} disabled={isSubmitted} className={isSubmitted ? "sr-only" : ""} />
+                        <Label key={oIndex} className={cls}>
+                          <RadioGroupItem value={opt} id={`q${qIndex}-o${oIndex}`}
+                            disabled={isSubmitted} className={isSubmitted ? "sr-only" : ""} />
                           <span className="flex-1 font-medium">{opt}</span>
                           {icon}
                         </Label>
@@ -210,11 +275,12 @@ export default function Quiz() {
                 <RotateCcw className="w-4 h-4" /> New Quiz
               </Button>
               <div className="flex gap-3">
-                <Button variant="outline" onClick={handleGenerate} disabled={generateQuiz.isPending} className="gap-2">
+                <Button variant="outline" onClick={handleGenerate} disabled={isGenerating} className="gap-2">
                   <RefreshCw className="w-4 h-4" /> Different Questions
                 </Button>
                 {!isSubmitted && (
-                  <Button onClick={handleSubmit} className="bg-violet-600 hover:bg-violet-700 px-8 gap-2" disabled={saveQuiz.isPending}>
+                  <Button onClick={handleSubmit} className="bg-violet-600 hover:bg-violet-700 px-8 gap-2"
+                    disabled={saveQuiz.isPending}>
                     {saveQuiz.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
                     Submit Quiz
                   </Button>
