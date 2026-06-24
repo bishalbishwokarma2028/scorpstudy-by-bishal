@@ -8,8 +8,13 @@
     "BASE_PATH": "/",
     "PORT": "3000"
   },
+  "build": {
+    "env": {
+      "BASE_PATH": "/",
+      "PORT": "3000"
+    }
+  },
   "rewrites": [
-    { "source": "/api/(.*)", "destination": "https://YOUR_API_URL/api/$1" },
     { "source": "/(.*)", "destination": "/index.html" }
   ],
   "headers": [

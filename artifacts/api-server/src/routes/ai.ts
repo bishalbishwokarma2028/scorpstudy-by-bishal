@@ -8,6 +8,7 @@ import {
 } from "@workspace/api-zod";
 import { logger } from "../lib/logger";
 import { aiCompletion, aiVisionCompletion, type ChatMessage } from "../lib/ai-provider";
+import { getCachedAnswer, setCachedAnswer } from "../lib/question-cache";
 import Groq from "groq-sdk";
 
 const router: IRouter = Router();
@@ -140,6 +141,18 @@ router.post("/ai/chat", async (req, res): Promise<void> => {
 
   const maxTokens = mode === "topper" ? 4096 : 2048;
 
+  // ── Cache check (text-only, non-image, standard mode) ──────────────────
+  const lastUserMsg = messages[messages.length - 1];
+  const lastText = typeof lastUserMsg?.content === "string" ? lastUserMsg.content : "";
+
+  if (!hasImage && mode === "standard" && lastText) {
+    const cached = await getCachedAnswer(lastText);
+    if (cached) {
+      res.json({ content: cached, cached: true });
+      return;
+    }
+  }
+
   if (hasImage && messages.length > 0) {
     const lastMsg = messages[messages.length - 1];
     const withoutLast = messages.slice(0, -1);
@@ -171,6 +184,12 @@ router.post("/ai/chat", async (req, res): Promise<void> => {
     messages: [systemMessage, ...messages],
     maxTokens,
   });
+
+  // Store in cache (fire-and-forget — never blocks response)
+  if (!hasImage && mode === "standard" && lastText) {
+    setCachedAnswer(lastText, content).catch(() => {});
+  }
+
   res.json({ content });
 });
 
