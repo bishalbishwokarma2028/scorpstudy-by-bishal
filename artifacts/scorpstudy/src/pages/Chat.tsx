@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { useUserProfile } from "@/contexts/UserProfileContext";
+import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent } from "@/components/ui/card";
@@ -225,6 +226,7 @@ const STARTERS = [
 
 export default function Chat() {
   const { profile } = useUserProfile();
+  const { user } = useAuth();
   const [messages, setMessages] = useState<Message[]>(persist.messages);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -359,8 +361,16 @@ export default function Chat() {
           mode: isTopperMode ? "topper" : "standard",
           ...(imageData ? { image_data: imageData } : {}),
           ...(profile ? { userProfile: profile } : {}),
+          ...(user?.id ? { userId: user.id } : {}),
         }),
       });
+      if (res.status === 429) {
+        const data = await res.json();
+        toast.error(data.message ?? "You have crossed today's free quota limit. Try again tomorrow.", { duration: 6000 });
+        setMessages(newMessages.slice(0, -1));
+        persist.messages = newMessages.slice(0, -1);
+        return;
+      }
       if (!res.ok) throw new Error("Request failed");
       const data = await res.json();
       const aiMsg: Message = { role: "assistant", content: data.content as string };

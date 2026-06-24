@@ -9,6 +9,7 @@ import {
 import { logger } from "../lib/logger";
 import { aiCompletion, aiVisionCompletion, type ChatMessage } from "../lib/ai-provider";
 import { getCachedAnswer, setCachedAnswer } from "../lib/question-cache";
+import { checkAndIncrementLimit } from "../lib/daily-limit";
 import Groq from "groq-sdk";
 
 const router: IRouter = Router();
@@ -129,6 +130,21 @@ router.post("/ai/chat", async (req, res): Promise<void> => {
   const rawProfile = req.body?.userProfile;
   const userProfile: ProfileData | undefined =
     rawProfile && typeof rawProfile === "object" ? rawProfile as ProfileData : undefined;
+  const userId = typeof req.body?.userId === "string" ? req.body.userId : null;
+
+  // ── Daily quota check ──────────────────────────────────────────────────
+  if (userId) {
+    const quota = await checkAndIncrementLimit(userId);
+    if (!quota.allowed) {
+      res.status(429).json({
+        error: "quota_exceeded",
+        message: "You have crossed today's free quota limit. Try again tomorrow.",
+        used: quota.used,
+        limit: quota.limit,
+      });
+      return;
+    }
+  }
 
   const systemMessage: ChatMessage = {
     role: "system",
