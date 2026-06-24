@@ -35,7 +35,7 @@ const dailyTip = STUDY_TIPS[new Date().getDate() % STUDY_TIPS.length];
 const QUICK_ACTIONS = [
   {
     href: "/dashboard/chat",
-    label: "AI Chat Tutor",
+    label: "Bishal's Assistant",
     desc: "Ask anything, get explained",
     icon: MessageSquare,
     gradient: "from-blue-500 to-cyan-400",
