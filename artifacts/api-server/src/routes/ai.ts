@@ -10,6 +10,7 @@ import { logger } from "../lib/logger";
 import { aiCompletion, aiVisionCompletion, type ChatMessage } from "../lib/ai-provider";
 import { getCachedAnswer, setCachedAnswer } from "../lib/question-cache";
 import { checkAndIncrementLimit } from "../lib/daily-limit";
+import { getIdentityCachedAnswer } from "../lib/identity-cache";
 import Groq from "groq-sdk";
 
 const router: IRouter = Router();
@@ -152,6 +153,20 @@ router.post("/ai/chat", async (req, res): Promise<void> => {
   const userProfile: ProfileData | undefined =
     rawProfile && typeof rawProfile === "object" ? rawProfile as ProfileData : undefined;
   const userId = typeof req.body?.userId === "string" ? req.body.userId : null;
+
+  // ── Identity cache check — instant, zero API call ──────────────────────
+  if (!hasImage) {
+    const msgs = parsed.data.messages.filter((m) => m.role !== "system");
+    const lastMsg = msgs[msgs.length - 1];
+    const lastText = typeof lastMsg?.content === "string" ? lastMsg.content.trim() : "";
+    if (lastText) {
+      const identityAnswer = getIdentityCachedAnswer(lastText);
+      if (identityAnswer) {
+        res.json({ content: identityAnswer, cached: true });
+        return;
+      }
+    }
+  }
 
   // ── Daily quota check ──────────────────────────────────────────────────
   if (userId) {
