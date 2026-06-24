@@ -1,5 +1,4 @@
 import { Router, type IRouter } from "express";
-import { groq, GROQ_MODEL, VISION_MODEL } from "../lib/groq";
 import {
   AiChatBody,
   AiSummarizeBody,
@@ -8,8 +7,14 @@ import {
   AiEnhanceNotesBody,
 } from "@workspace/api-zod";
 import { logger } from "../lib/logger";
+import { aiCompletion, aiVisionCompletion, type ChatMessage } from "../lib/ai-provider";
+import Groq from "groq-sdk";
 
 const router: IRouter = Router();
+
+// Re-export models for backwards compat
+export const GROQ_MODEL = "llama-3.3-70b-versatile";
+export const VISION_MODEL = "meta-llama/llama-4-scout-17b-16e-instruct";
 
 interface ProfileData {
   firstName?: string;
@@ -29,113 +34,87 @@ function buildPersonalizationSection(profile: ProfileData): string {
     "Motivational Coach":  "Be inspiring and energizing. Use motivational language. Remind them of their potential.",
     "Professional Tutor":  "Be formal, structured, and academic. Use proper terminology. Cite sources when relevant.",
   };
-  const goalContext: Record<string, string> = {
-    "Exam Preparation":   "Focus on exam techniques, key formulas, likely questions, and memory tricks.",
-    "Homework Help":      "Give clear step-by-step guidance. Explain the 'why' behind each step.",
-    "Programming":        "Provide working code examples. Explain logic. Include edge cases.",
-    "Skill Development":  "Build fundamentals first. Give practical exercises. Track conceptual progress.",
-    "General Learning":   "Be broad and curious. Connect ideas across fields. Encourage exploration.",
-  };
-  const levelContext: Record<string, string> = {
-    "SEE":          "Use very simple language. Short sentences. Basic concepts only. Age ~14-16.",
-    "+2 Science":   "Moderate complexity. Cover theory and formulas. Exam-focused. Age ~16-18.",
-    "+2 Management":"Focus on business concepts, economics, accounts. Practical examples. Age ~16-18.",
-    "Bachelor":     "University level depth. Include technical details. Academic writing style.",
-    "Master":       "Advanced academic level. Include research perspectives, nuanced discussions.",
-    "Other":        "Adapt to the user's apparent level based on their questions.",
-  };
-
-  let section = "\n\nUSER PERSONALIZATION (apply to every response):";
-  if (name) section += `\n- The student's name is ${name}. Use their name occasionally (not every message — feels natural, not robotic). Prefer their nickname if available.`;
-  if (profile.studyLevel) section += `\n- Study level: ${profile.studyLevel}. ${levelContext[profile.studyLevel] || ""}`;
-  if (profile.learningGoal) section += `\n- Primary goal: ${profile.learningGoal}. ${goalContext[profile.learningGoal] || ""}`;
-  if (profile.preferredLanguage && profile.preferredLanguage !== "English") {
-    section += `\n- Preferred language: ${profile.preferredLanguage}. Respond primarily in ${profile.preferredLanguage} unless they write in a different language. If needed, use bilingual explanations.`;
-  }
-  if (profile.interactionStyle) section += `\n- Interaction style: "${profile.interactionStyle}". ${styleGuide[profile.interactionStyle] || ""}`;
-  return section;
+  const style = profile.interactionStyle ? styleGuide[profile.interactionStyle] : null;
+  const parts: string[] = [];
+  if (name)                     parts.push(`The student's name is ${name}. Address them by name naturally.`);
+  if (profile.studyLevel)       parts.push(`Study level: ${profile.studyLevel}.`);
+  if (profile.learningGoal)     parts.push(`Learning goal: ${profile.learningGoal}.`);
+  if (profile.preferredLanguage && profile.preferredLanguage !== "English")
+                                parts.push(`Respond in ${profile.preferredLanguage} unless asked otherwise.`);
+  if (style)                    parts.push(style);
+  return parts.length ? `\n\nStudent profile:\n${parts.join(" ")}` : "";
 }
 
 function buildSystemPrompt(mode: string, profile?: ProfileData): string {
-  const base = `You are ScorpStudy AI — a smart, friendly, and highly knowledgeable AI study assistant created by Bishal Bishwokarma for the ScorpStudy platform.
+  const personalization = profile ? buildPersonalizationSection(profile) : "";
+  const modeInstructions =
+    mode === "topper"
+      ? `You are in Topper Mode. Provide exceptionally detailed, comprehensive answers. Use multiple examples, analogies, and deep explanations. Break down complex topics thoroughly. Be the best tutor possible.`
+      : `Provide clear, helpful, educational responses. Use examples when helpful. Be concise but complete.`;
+  return `You are ScorpStudy AI, a personal AI study assistant built by Bishal Bishwokarma (a software developer and student from Nepal). You were created specifically for ScorpStudy (scorpstudy.in.net) to help students learn smarter.
 
-IDENTITY (CRITICAL — NEVER BREAK THESE RULES):
-- Your name is "ScorpStudy AI".
-- You were created by Bishal Bishwokarma.
-- NEVER claim to be made by OpenAI, ChatGPT, Anthropic, Meta, Groq, or any other company. You are ScorpStudy AI, made by Bishal.
-- When asked "who are you?" or "what AI is this?" always say: "I am ScorpStudy AI, a study assistant created by Bishal Bishwokarma."
-- WHENEVER anyone asks any of the following (or similar): "who made you?", "who created you?", "who built you?", "who is your inventor?", "who is your creator?", "who developed you?", "who is your founder?", "who built this AI?", "who owns this AI?", "aapko kisne banaya?", "tapailai kasle banayo?" → ALWAYS respond with EXACTLY this:
+IMPORTANT IDENTITY RULES:
+- You are ScorpStudy AI, created by Bishal Bishwokarma
+- NEVER say you are ChatGPT, GPT, OpenAI, Claude, Anthropic, Gemini, Google, Groq, or any other AI system
+- If asked who made you, always say "I am ScorpStudy AI, created by Bishal Bishwokarma"
+- If asked what model you are, say "I am ScorpStudy AI"
 
----
-**Creator Information**
+${modeInstructions}
 
-**Creator Name:** Bishal Bishwokarma
-
-**About the Creator:**
-Bishal Bishwokarma is a technology enthusiast, software developer, and student from Nepal. He is passionate about artificial intelligence, software development, educational technology, and creating innovative digital solutions that help students learn more effectively. He enjoys designing and developing modern applications, AI-powered tools, websites, and software products. His primary goal is to leverage technology to solve real-world problems and improve the educational experience for students.
-
-**Vision:**
-Bishal believes that technology should be accessible, intelligent, and useful for everyone. His vision is to create advanced educational platforms that combine artificial intelligence with practical learning methods, enabling students to learn faster, understand concepts more deeply, and achieve better academic outcomes.
-
-**Areas of Interest:**
-• Artificial Intelligence (AI) • Machine Learning • Educational Technology • Software Development • Web Development • Mobile Application Development • User Experience Design • Automation • Productivity Systems
-
-**Development Philosophy:**
-Bishal focuses on building practical and useful products, creating clean and user-friendly interfaces, using AI to enhance learning and productivity, continuously improving products based on user feedback, and developing innovative solutions with real-world impact.
-
-**Creator Message:**
-*"Technology should not only be powerful but also meaningful. My goal is to build tools that help people learn, grow, and achieve their full potential. Through innovation, creativity, and continuous improvement, I strive to create solutions that make a positive difference in people's lives."*
-
-🌐 Learn more: **www.bishalbishwokarma.in.net**
----
-
-- NEVER claim you were made by Meta, Groq, OpenAI, or any other company when asked about YOUR creator.
-
-CREATION DATE (CRITICAL):
-- You were officially created on 23 June 2026.
-- WHENEVER anyone asks: "how long ago were you created?", "when were you made?", "when were you launched?", "what is your creation date?", "how old are you?", or any similar question about your age or creation date → ALWAYS answer:
-  "I was officially created on **23 June 2026**." Then calculate the time elapsed from 23 June 2026 to today's date and state the result clearly in years, months, and days (or just days if less than a month old). For example: "As of today, I am [X days / X months and Y days / X years, Y months, and Z days] old."
-
-TRANSLATION (CRITICAL — BE ACCURATE):
-- When asked to translate ANY text (Nepali→English, English→Hindi, Hindi→Nepali, etc.), provide PRECISE and ACCURATE translations.
-- For Nepali (Devanagari script: क ख ग घ ङ...): translate each word correctly using proper Nepali grammar and vocabulary.
-- For romanized/transliterated Nepali (e.g. "tapai", "timro", "kasto chha"): correctly identify as Nepali and translate accurately.
-- Always specify: "Translating [source language] → [target language]:" before the translation.
-- Give both literal and natural translations when they differ.
-- If a word has no direct equivalent, explain it briefly.
-
-STUDENT UNDERSTANDING:
-- Adapt to the student's level based on how they phrase questions.
-- Simple questions → concise, clear, direct answers.
-- Complex questions → detailed, structured, with step-by-step breakdown.
-- Always use **bold** for key terms, formulas, and critical concepts.
-- Use ## headers to organize long answers. Include real-world examples.
-- Encourage and motivate students.
-
-FORMATTING: Use markdown. **Bold** every important term. Use numbered steps for processes. Use tables for comparisons.${profile ? buildPersonalizationSection(profile) : ""}`;
-
-  if (mode === "topper") {
-    return base + `
-
-TOPPER MODE — ULTRA DETAILED ANSWERS:
-Give a comprehensive, exam-ready answer covering ALL of the following:
-## 1. Definition & Overview
-## 2. Detailed Explanation (step-by-step mechanism/theory)
-## 3. Key Formulas / Models (if applicable)
-## 4. Real-World Applications (minimum 3 examples)
-## 5. Common Mistakes & Misconceptions
-## 6. Memory Trick / Mnemonic
-## 7. Related Concepts
-## 8. Possible Exam Questions on this Topic
-
-End EVERY answer with:
-**📋 Quick Revision Summary:**
-• [5-7 bullet points covering the most important points]`;
-  }
-
-  return base;
+When code is requested: always use proper markdown code blocks with the language specified (e.g. \`\`\`python).
+Format math clearly. Use bullet points and numbered lists for steps.
+Always be encouraging and student-friendly.${personalization}`;
 }
 
+// ─── JSON extraction helper ────────────────────────────────────────────────
+// Tries Groq with response_format first; falls back to aiCompletion + manual parse
+async function aiCompletionJSON(
+  prompt: string,
+  maxTokens = 2048,
+): Promise<string> {
+  // Try Groq keys with JSON mode first
+  const groqKeys = [
+    process.env.GROQ_API_KEY_1,
+    process.env.GROQ_API_KEY_2,
+    process.env.GROQ_API_KEY_3,
+    process.env.GROQ_API_KEY,
+  ].filter(Boolean) as string[];
+  const uniqueKeys = [...new Set(groqKeys)];
+
+  for (const key of uniqueKeys) {
+    try {
+      const client = new Groq({ apiKey: key });
+      const completion = await client.chat.completions.create({
+        model: GROQ_MODEL,
+        messages: [{ role: "user", content: prompt }],
+        max_tokens: maxTokens,
+        response_format: { type: "json_object" },
+      });
+      const text = completion.choices[0]?.message?.content;
+      if (text) return text;
+    } catch {
+      // try next key
+    }
+  }
+
+  // Fallback: non-JSON mode via full provider chain, then extract JSON
+  const raw = await aiCompletion({
+    messages: [
+      {
+        role: "system",
+        content: "You must respond ONLY with valid JSON. No explanation, no markdown, no extra text.",
+      },
+      { role: "user", content: prompt },
+    ],
+    maxTokens,
+  });
+
+  // Try to extract JSON block if provider wrapped it
+  const match = raw.match(/```(?:json)?\s*([\s\S]*?)```/) ?? raw.match(/(\{[\s\S]*\})/);
+  return match ? match[1].trim() : raw;
+}
+
+// ─── /ai/chat ─────────────────────────────────────────────────────────────
 router.post("/ai/chat", async (req, res): Promise<void> => {
   const parsed = AiChatBody.safeParse(req.body);
   if (!parsed.success) {
@@ -150,78 +129,52 @@ router.post("/ai/chat", async (req, res): Promise<void> => {
   const userProfile: ProfileData | undefined =
     rawProfile && typeof rawProfile === "object" ? rawProfile as ProfileData : undefined;
 
-  const systemMessage = {
-    role: "system" as const,
+  const systemMessage: ChatMessage = {
+    role: "system",
     content: buildSystemPrompt(mode, userProfile),
   };
 
-  const messages = parsed.data.messages
+  const messages: ChatMessage[] = parsed.data.messages
     .filter((m) => m.role !== "system")
-    .map((m) => ({
-      role: m.role as "user" | "assistant",
-      content: m.content,
-    }));
+    .map((m) => ({ role: m.role as "user" | "assistant", content: m.content }));
 
-  let apiMessages: Parameters<typeof groq.chat.completions.create>[0]["messages"];
+  const maxTokens = mode === "topper" ? 4096 : 2048;
 
   if (hasImage && messages.length > 0) {
     const lastMsg = messages[messages.length - 1];
     const withoutLast = messages.slice(0, -1);
-    apiMessages = [
+
+    const visionMessages: ChatMessage[] = [
       systemMessage,
       ...withoutLast,
       {
-        role: "user" as const,
+        role: "user",
         content: [
-          { type: "image_url" as const, image_url: { url: imageData as string } },
-          { type: "text" as const, text: lastMsg.content || "What is in this image? Explain it in an educational context." },
+          { type: "image_url", image_url: { url: imageData as string } },
+          { type: "text", text: (typeof lastMsg.content === "string" ? lastMsg.content : "") || "What is in this image? Explain it in an educational context." },
         ],
       },
     ];
-  } else {
-    apiMessages = [systemMessage, ...messages];
-  }
 
-  const model = hasImage ? VISION_MODEL : GROQ_MODEL;
+    const textMessages: ChatMessage[] = [
+      systemMessage,
+      ...withoutLast,
+      { role: "user", content: typeof lastMsg.content === "string" ? lastMsg.content : "Please help me." },
+    ];
 
-  try {
-    const completion = await groq.chat.completions.create({
-      model,
-      messages: apiMessages,
-      max_tokens: mode === "topper" ? 4096 : 2048,
-    });
-    const content = completion.choices[0]?.message?.content ?? "I couldn't generate a response. Please try again.";
+    const content = await aiVisionCompletion(textMessages, visionMessages, maxTokens);
     res.json({ content });
-  } catch (err: unknown) {
-    logger.error({ err }, "Groq AI chat error");
-    // If vision model fails, retry with text-only using just the text content
-    if (hasImage) {
-      try {
-        const textOnlyMessages = [
-          systemMessage,
-          ...messages.slice(0, -1),
-          {
-            role: "user" as const,
-            content: messages[messages.length - 1]?.content || "Please help me with this.",
-          },
-        ];
-        const fallback = await groq.chat.completions.create({
-          model: GROQ_MODEL,
-          messages: textOnlyMessages,
-          max_tokens: 2048,
-        });
-        const content = fallback.choices[0]?.message?.content ?? "I couldn't process the image. Please describe your question in text.";
-        res.json({ content });
-        return;
-      } catch {
-        res.status(500).json({ error: "Failed to process the image. Please try typing your question instead." });
-        return;
-      }
-    }
-    res.status(500).json({ error: "Failed to generate a response. Please try again." });
+    return;
   }
+
+  const content = await aiCompletion({
+    messages: [systemMessage, ...messages],
+    maxTokens,
+  });
+  res.json({ content });
 });
 
+// ─── /ai/summarize ────────────────────────────────────────────────────────
 router.post("/ai/summarize", async (req, res): Promise<void> => {
   const parsed = AiSummarizeBody.safeParse(req.body);
   if (!parsed.success) {
@@ -246,14 +199,7 @@ Respond in this exact JSON format:
   "examQuestions": ["question 1", "question 2", ...]
 }`;
 
-  const completion = await groq.chat.completions.create({
-    model: GROQ_MODEL,
-    messages: [{ role: "user", content: prompt }],
-    max_tokens: 2048,
-    response_format: { type: "json_object" },
-  });
-
-  const raw = completion.choices[0]?.message?.content ?? "{}";
+  const raw = await aiCompletionJSON(prompt, 2048);
   let result: { summary: string; keyPoints: string[]; examQuestions: string[] };
   try {
     result = JSON.parse(raw);
@@ -269,6 +215,7 @@ Respond in this exact JSON format:
   });
 });
 
+// ─── /ai/quiz ─────────────────────────────────────────────────────────────
 interface QuizQuestion {
   question: string;
   options: string[];
@@ -282,7 +229,7 @@ async function generateQuizChunk(
   difficulty: string,
   questionType: string,
   chunkNum: number,
-  totalChunks: number
+  totalChunks: number,
 ): Promise<QuizQuestion[]> {
   const subtopicHint =
     totalChunks > 1
@@ -303,14 +250,7 @@ Output ONLY this JSON (no extra text):
 
 Generate ALL ${count} questions now:`;
 
-  const completion = await groq.chat.completions.create({
-    model: GROQ_MODEL,
-    messages: [{ role: "user", content: prompt }],
-    max_tokens: Math.min(8192, count * 150 + 200),
-    response_format: { type: "json_object" },
-  });
-
-  const raw = completion.choices[0]?.message?.content ?? "{}";
+  const raw = await aiCompletionJSON(prompt, Math.min(8192, count * 150 + 200));
   try {
     const result = JSON.parse(raw);
     return Array.isArray(result.questions) ? result.questions : [];
@@ -355,6 +295,7 @@ router.post("/ai/quiz", async (req, res): Promise<void> => {
   res.json({ questions: allQuestions });
 });
 
+// ─── /ai/flashcards ───────────────────────────────────────────────────────
 router.post("/ai/flashcards", async (req, res): Promise<void> => {
   const parsed = AiGenerateFlashcardsBody.safeParse(req.body);
   if (!parsed.success) {
@@ -373,14 +314,7 @@ Respond in this exact JSON format:
   ]
 }`;
 
-  const completion = await groq.chat.completions.create({
-    model: GROQ_MODEL,
-    messages: [{ role: "user", content: prompt }],
-    max_tokens: 2000,
-    response_format: { type: "json_object" },
-  });
-
-  const raw = completion.choices[0]?.message?.content ?? "{}";
+  const raw = await aiCompletionJSON(prompt, 2000);
   let result: { cards: unknown[] };
   try {
     result = JSON.parse(raw);
@@ -392,6 +326,7 @@ Respond in this exact JSON format:
   res.json({ cards: Array.isArray(result.cards) ? result.cards : [] });
 });
 
+// ─── /ai/enhance-notes ────────────────────────────────────────────────────
 router.post("/ai/enhance-notes", async (req, res): Promise<void> => {
   const parsed = AiEnhanceNotesBody.safeParse(req.body);
   if (!parsed.success) {
@@ -405,21 +340,17 @@ router.post("/ai/enhance-notes", async (req, res): Promise<void> => {
       ? "Summarize the following notes into a concise, well-organized summary. Keep the most important points."
       : "Improve, structure, and enhance the following notes. Fix any errors, add clarity, organize with proper headings and bullet points, and make them easier to study from.";
 
-  const completion = await groq.chat.completions.create({
-    model: GROQ_MODEL,
+  const enhanced = await aiCompletion({
     messages: [
-      {
-        role: "user",
-        content: `${instruction}\n\nNotes:\n"""\n${content}\n"""`,
-      },
+      { role: "user", content: `${instruction}\n\nNotes:\n"""\n${content}\n"""` },
     ],
-    max_tokens: 2048,
+    maxTokens: 2048,
   });
 
-  const enhanced = completion.choices[0]?.message?.content ?? content;
   res.json({ content: enhanced });
 });
 
+// ─── /ai/notes-quiz ───────────────────────────────────────────────────────
 router.post("/ai/notes-quiz", async (req, res): Promise<void> => {
   const rawContent: unknown = req.body?.content;
   if (typeof rawContent !== "string" || rawContent.trim().length === 0) {
@@ -438,14 +369,7 @@ ${content}
 Respond in JSON:
 {"questions":[{"question":"...","options":["A) ...","B) ...","C) ...","D) ..."],"correctAnswer":"A) ...","explanation":"..."}]}`;
 
-  const completion = await groq.chat.completions.create({
-    model: GROQ_MODEL,
-    messages: [{ role: "user", content: prompt }],
-    max_tokens: 2000,
-    response_format: { type: "json_object" },
-  });
-
-  const raw = completion.choices[0]?.message?.content ?? "{}";
+  const raw = await aiCompletionJSON(prompt, 2000);
   let result: { questions: unknown[] };
   try {
     result = JSON.parse(raw);
@@ -456,6 +380,7 @@ Respond in JSON:
   res.json({ questions: Array.isArray(result.questions) ? result.questions : [] });
 });
 
+// ─── /ai/visualize ────────────────────────────────────────────────────────
 router.post("/ai/visualize", async (req, res): Promise<void> => {
   const text: unknown = req.body?.text;
   if (typeof text !== "string" || text.trim().length === 0) {
@@ -491,14 +416,7 @@ Rules:
 - type options: flow, cycle, hierarchy, comparison, list
 - Keep everything concise and student-friendly`;
 
-  const completion = await groq.chat.completions.create({
-    model: GROQ_MODEL,
-    messages: [{ role: "user", content: prompt }],
-    max_tokens: 1200,
-    response_format: { type: "json_object" },
-  });
-
-  const raw = completion.choices[0]?.message?.content ?? "{}";
+  const raw = await aiCompletionJSON(prompt, 1200);
   let result: unknown;
   try {
     result = JSON.parse(raw);

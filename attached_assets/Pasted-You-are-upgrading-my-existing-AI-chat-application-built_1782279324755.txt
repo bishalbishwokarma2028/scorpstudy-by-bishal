@@ -1,0 +1,147 @@
+You are upgrading my existing AI chat application built on Replit with Supabase (free plan: 0.5GB storage).
+
+The app already uses one Groq API key.
+
+Now you must build a smart, efficient, and storage-optimized ChatGPT-like system using multiple API keys and multiple AI providers.
+
+----------------------------------
+
+1. API KEYS CONFIGURATION
+
+The system has:
+
+- GROQ_API_KEY_1 (currently active)
+- GROQ_API_KEY_2 (backup)
+- GROQ_API_KEY_3 (backup)
+
+- GEMINI_API_KEY_1
+- GEMINI_API_KEY_2
+- GEMINI_API_KEY_3
+
+- OPENAI_API_KEY (use only as rare fallback)
+
+- HUGGINGFACE_API_KEY (last fallback)
+
+----------------------------------
+
+2. KEY USAGE STRATEGY
+
+Groq:
+- Always try GROQ_API_KEY_1 first
+- If rate limit or error → switch to KEY_2
+- If still fails → switch to KEY_3
+
+Gemini:
+- Rotate between all 3 keys (random or round-robin)
+- Distribute requests evenly
+
+OpenAI:
+- Use ONLY when Groq and Gemini completely fail
+
+HuggingFace:
+- Use as last fallback (slow but always available)
+
+----------------------------------
+
+3. MULTI-AI FALLBACK FLOW
+
+Follow this exact order:
+
+1. Groq KEY 1
+2. Groq KEY 2
+3. Groq KEY 3
+4. Gemini (rotate 3 keys)
+5. OpenAI
+6. HuggingFace
+
+Stop when a response is successful.
+
+Never show technical errors to users.
+
+----------------------------------
+
+4. CONTEXT MEMORY (IMPORTANT)
+
+- Store chat messages in Supabase
+- For each request:
+  → Fetch last 5–10 messages only
+- Do NOT store full chat history
+- Limit stored messages per user (avoid large storage)
+
+----------------------------------
+
+5. CACHE SYSTEM (STORAGE OPTIMIZED)
+
+Supabase free plan is limited (0.5GB), so:
+
+- Cache only useful study-related questions
+- Do NOT cache:
+  → greetings
+  → personal chat
+  → long or random queries
+
+- Avoid duplicate entries
+- Limit total cache size to ~500–1000 entries
+- Automatically delete old entries (FIFO or time-based)
+
+- Keep answers SHORT (important for storage)
+
+----------------------------------
+
+6. STORAGE OPTIMIZATION RULES
+
+- Do not store long responses
+- Do not store full conversations
+- Only store:
+  → important questions
+  → short answers
+  → last few chat messages
+
+----------------------------------
+
+7. PERFORMANCE OPTIMIZATION
+
+- Always check cache before API call
+- Keep context small (max 10 messages)
+- Keep prompts short
+- Reduce unnecessary API usage
+
+----------------------------------
+
+8. USER EXPERIENCE
+
+- App must feel:
+  → fast
+  → smooth
+  → continuous
+  → unlimited chat experience
+
+- Never show raw errors
+- Always return clean response
+
+----------------------------------
+
+9. FAILURE HANDLING
+
+If all APIs fail:
+→ Return: “AI is busy right now, please try again.”
+
+----------------------------------
+
+10. SYSTEM GOAL
+
+Create a smart system that:
+
+- Uses multiple API keys efficiently
+- Distributes load across APIs
+- Minimizes storage usage
+- Maximizes free-tier usage
+- Simulates ChatGPT-like unlimited experience
+
+----------------------------------
+
+IMPORTANT:
+
+Keep the system simple, efficient, and optimized for free resources.
+Avoid overloading Supabase storage.
+Focus on stability, speed, and smart API usage.

@@ -1,10 +1,15 @@
 {
   "version": 2,
   "buildCommand": "pnpm --filter @workspace/scorpstudy build",
-  "outputDirectory": "artifacts/scorpstudy/dist",
+  "outputDirectory": "artifacts/scorpstudy/dist/public",
   "installCommand": "pnpm install",
   "framework": null,
+  "env": {
+    "BASE_PATH": "/",
+    "PORT": "3000"
+  },
   "rewrites": [
+    { "source": "/api/(.*)", "destination": "https://YOUR_API_URL/api/$1" },
     { "source": "/(.*)", "destination": "/index.html" }
   ],
   "headers": [
@@ -12,7 +17,7 @@
       "source": "/(.*)",
       "headers": [
         { "key": "X-Content-Type-Options", "value": "nosniff" },
-        { "key": "X-Frame-Options", "value": "DENY" },
+        { "key": "X-Frame-Options", "value": "SAMEORIGIN" },
         { "key": "X-XSS-Protection", "value": "1; mode=block" }
       ]
     },
