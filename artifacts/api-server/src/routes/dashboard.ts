@@ -1,10 +1,12 @@
 import { Router, type IRouter } from "express";
 import { db, chatsTable, quizzesTable, flashcardsTable, summariesTable, notesTable, imagesTable } from "@workspace/db";
-import { desc, lt, sql } from "drizzle-orm";
+import { desc, eq, lt, sql, and } from "drizzle-orm";
+import { requireAuth } from "../middleware/auth";
 
 const router: IRouter = Router();
 
-router.get("/dashboard/stats", async (_req, res): Promise<void> => {
+router.get("/dashboard/stats", requireAuth, async (req, res): Promise<void> => {
+  const uid = req.userId;
   const [
     noteCount,
     chatCount,
@@ -13,14 +15,15 @@ router.get("/dashboard/stats", async (_req, res): Promise<void> => {
     imageCount,
     quizAvg,
   ] = await Promise.all([
-    db.select({ count: sql<number>`count(*)::int` }).from(notesTable),
-    db.select({ count: sql<number>`count(*)::int` }).from(chatsTable),
-    db.select({ count: sql<number>`count(*)::int` }).from(quizzesTable),
-    db.select({ count: sql<number>`count(*)::int` }).from(flashcardsTable),
-    db.select({ count: sql<number>`count(*)::int` }).from(imagesTable),
+    db.select({ count: sql<number>`count(*)::int` }).from(notesTable).where(eq(notesTable.userId, uid)),
+    db.select({ count: sql<number>`count(*)::int` }).from(chatsTable).where(eq(chatsTable.userId, uid)),
+    db.select({ count: sql<number>`count(*)::int` }).from(quizzesTable).where(eq(quizzesTable.userId, uid)),
+    db.select({ count: sql<number>`count(*)::int` }).from(flashcardsTable).where(eq(flashcardsTable.userId, uid)),
+    db.select({ count: sql<number>`count(*)::int` }).from(imagesTable).where(eq(imagesTable.userId, uid)),
     db
       .select({ avg: sql<number>`avg(score::float / NULLIF(total, 0) * 100)` })
-      .from(quizzesTable),
+      .from(quizzesTable)
+      .where(eq(quizzesTable.userId, uid)),
   ]);
 
   res.json({
@@ -33,22 +36,22 @@ router.get("/dashboard/stats", async (_req, res): Promise<void> => {
   });
 });
 
-router.get("/dashboard/activity", async (_req, res): Promise<void> => {
-  // Auto-delete records older than 30 days (chats, summaries, quizzes, flashcards)
+router.get("/dashboard/activity", requireAuth, async (req, res): Promise<void> => {
+  const uid = req.userId;
   const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+
   await Promise.all([
-    db.delete(chatsTable).where(lt(chatsTable.createdAt, thirtyDaysAgo)),
-    db.delete(summariesTable).where(lt(summariesTable.createdAt, thirtyDaysAgo)),
-    db.delete(quizzesTable).where(lt(quizzesTable.createdAt, thirtyDaysAgo)),
-    db.delete(flashcardsTable).where(lt(flashcardsTable.createdAt, thirtyDaysAgo)),
+    db.delete(chatsTable).where(and(eq(chatsTable.userId, uid), lt(chatsTable.createdAt, thirtyDaysAgo))),
+    db.delete(summariesTable).where(and(eq(summariesTable.userId, uid), lt(summariesTable.createdAt, thirtyDaysAgo))),
+    db.delete(quizzesTable).where(and(eq(quizzesTable.userId, uid), lt(quizzesTable.createdAt, thirtyDaysAgo))),
+    db.delete(flashcardsTable).where(and(eq(flashcardsTable.userId, uid), lt(flashcardsTable.createdAt, thirtyDaysAgo))),
   ]);
 
-  // Fetch history — only chats, summaries, quizzes, flashcards (no notes, no images)
   const [chats, quizzes, flashcards, summaries] = await Promise.all([
-    db.select().from(chatsTable).orderBy(desc(chatsTable.createdAt)).limit(50),
-    db.select().from(quizzesTable).orderBy(desc(quizzesTable.createdAt)).limit(50),
-    db.select().from(flashcardsTable).orderBy(desc(flashcardsTable.createdAt)).limit(50),
-    db.select().from(summariesTable).orderBy(desc(summariesTable.createdAt)).limit(50),
+    db.select().from(chatsTable).where(eq(chatsTable.userId, uid)).orderBy(desc(chatsTable.createdAt)).limit(50),
+    db.select().from(quizzesTable).where(eq(quizzesTable.userId, uid)).orderBy(desc(quizzesTable.createdAt)).limit(50),
+    db.select().from(flashcardsTable).where(eq(flashcardsTable.userId, uid)).orderBy(desc(flashcardsTable.createdAt)).limit(50),
+    db.select().from(summariesTable).where(eq(summariesTable.userId, uid)).orderBy(desc(summariesTable.createdAt)).limit(50),
   ]);
 
   const activity = [

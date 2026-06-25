@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { eq, ilike } from "drizzle-orm";
+import { eq, ilike, and } from "drizzle-orm";
 import { db, notesTable } from "@workspace/db";
 import {
   ListNotesQueryParams,
@@ -9,10 +9,11 @@ import {
   UpdateNoteBody,
   DeleteNoteParams,
 } from "@workspace/api-zod";
+import { requireAuth } from "../middleware/auth";
 
 const router: IRouter = Router();
 
-router.get("/notes", async (req, res): Promise<void> => {
+router.get("/notes", requireAuth, async (req, res): Promise<void> => {
   const parsed = ListNotesQueryParams.safeParse(req.query);
   const search = parsed.success ? parsed.data.search : undefined;
 
@@ -20,9 +21,13 @@ router.get("/notes", async (req, res): Promise<void> => {
     ? await db
         .select()
         .from(notesTable)
-        .where(ilike(notesTable.title, `%${search}%`))
+        .where(and(eq(notesTable.userId, req.userId), ilike(notesTable.title, `%${search}%`)))
         .orderBy(notesTable.updatedAt)
-    : await db.select().from(notesTable).orderBy(notesTable.updatedAt);
+    : await db
+        .select()
+        .from(notesTable)
+        .where(eq(notesTable.userId, req.userId))
+        .orderBy(notesTable.updatedAt);
 
   res.json(
     rows.map((n) => ({
@@ -33,13 +38,16 @@ router.get("/notes", async (req, res): Promise<void> => {
   );
 });
 
-router.post("/notes", async (req, res): Promise<void> => {
+router.post("/notes", requireAuth, async (req, res): Promise<void> => {
   const parsed = CreateNoteBody.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.message });
     return;
   }
-  const [note] = await db.insert(notesTable).values(parsed.data).returning();
+  const [note] = await db
+    .insert(notesTable)
+    .values({ ...parsed.data, userId: req.userId })
+    .returning();
   res.status(201).json({
     ...note,
     createdAt: note.createdAt.toISOString(),
@@ -47,13 +55,16 @@ router.post("/notes", async (req, res): Promise<void> => {
   });
 });
 
-router.get("/notes/:id", async (req, res): Promise<void> => {
+router.get("/notes/:id", requireAuth, async (req, res): Promise<void> => {
   const params = GetNoteParams.safeParse(req.params);
   if (!params.success) {
     res.status(400).json({ error: params.error.message });
     return;
   }
-  const [note] = await db.select().from(notesTable).where(eq(notesTable.id, params.data.id));
+  const [note] = await db
+    .select()
+    .from(notesTable)
+    .where(and(eq(notesTable.id, params.data.id), eq(notesTable.userId, req.userId)));
   if (!note) {
     res.status(404).json({ error: "Note not found" });
     return;
@@ -65,7 +76,7 @@ router.get("/notes/:id", async (req, res): Promise<void> => {
   });
 });
 
-router.patch("/notes/:id", async (req, res): Promise<void> => {
+router.patch("/notes/:id", requireAuth, async (req, res): Promise<void> => {
   const params = UpdateNoteParams.safeParse(req.params);
   if (!params.success) {
     res.status(400).json({ error: params.error.message });
@@ -79,7 +90,7 @@ router.patch("/notes/:id", async (req, res): Promise<void> => {
   const [note] = await db
     .update(notesTable)
     .set(body.data)
-    .where(eq(notesTable.id, params.data.id))
+    .where(and(eq(notesTable.id, params.data.id), eq(notesTable.userId, req.userId)))
     .returning();
   if (!note) {
     res.status(404).json({ error: "Note not found" });
@@ -92,13 +103,16 @@ router.patch("/notes/:id", async (req, res): Promise<void> => {
   });
 });
 
-router.delete("/notes/:id", async (req, res): Promise<void> => {
+router.delete("/notes/:id", requireAuth, async (req, res): Promise<void> => {
   const params = DeleteNoteParams.safeParse(req.params);
   if (!params.success) {
     res.status(400).json({ error: params.error.message });
     return;
   }
-  const [note] = await db.delete(notesTable).where(eq(notesTable.id, params.data.id)).returning();
+  const [note] = await db
+    .delete(notesTable)
+    .where(and(eq(notesTable.id, params.data.id), eq(notesTable.userId, req.userId)))
+    .returning();
   if (!note) {
     res.status(404).json({ error: "Note not found" });
     return;

@@ -4,6 +4,7 @@ import { z } from "zod/v4";
 
 export const imagesTable = pgTable("images", {
   id: serial("id").primaryKey(),
+  userId: text("user_id").notNull(),
   prompt: text("prompt").notNull(),
   imageUrl: text("image_url").notNull(),
   style: text("style").notNull().default("realistic"),

@@ -4,6 +4,7 @@ import { z } from "zod/v4";
 
 export const quizzesTable = pgTable("quizzes", {
   id: serial("id").primaryKey(),
+  userId: text("user_id").notNull(),
   topic: text("topic").notNull(),
   score: integer("score").notNull(),
   total: integer("total").notNull(),

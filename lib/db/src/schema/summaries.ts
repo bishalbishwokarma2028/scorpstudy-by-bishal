@@ -4,6 +4,7 @@ import { z } from "zod/v4";
 
 export const summariesTable = pgTable("summaries", {
   id: serial("id").primaryKey(),
+  userId: text("user_id").notNull(),
   originalText: text("original_text").notNull(),
   summary: text("summary").notNull(),
   keyPoints: jsonb("key_points").notNull().default([]),

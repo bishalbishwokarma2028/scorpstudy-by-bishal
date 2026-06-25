@@ -4,6 +4,7 @@ import { z } from "zod/v4";
 
 export const flashcardsTable = pgTable("flashcards", {
   id: serial("id").primaryKey(),
+  userId: text("user_id").notNull(),
   topic: text("topic").notNull(),
   cards: jsonb("cards").notNull().default([]),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
