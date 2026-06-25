@@ -1,0 +1,863 @@
+openapi: 3.1.0
+info:
+  # Do not change the title, if the title changes, the import paths will be broken
+  title: Api
+  version: 0.1.0
+  description: ScorpStudy API specification
+servers:
+  - url: /api
+    description: Base API path
+tags:
+  - name: health
+    description: Health operations
+  - name: notes
+    description: Smart notes operations
+  - name: chat
+    description: AI chat history operations
+  - name: quizzes
+    description: Quiz operations
+  - name: flashcards
+    description: Flashcard set operations
+  - name: summaries
+    description: Document summary operations
+  - name: images
+    description: Generated image operations
+  - name: ai
+    description: AI inference endpoints
+  - name: dashboard
+    description: Dashboard summary endpoints
+
+paths:
+  /healthz:
+    get:
+      operationId: healthCheck
+      tags: [health]
+      summary: Health check
+      responses:
+        "200":
+          description: Healthy
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthStatus"
+
+  # ── Notes ──────────────────────────────────────────────────────────────────
+  /notes:
+    get:
+      operationId: listNotes
+      tags: [notes]
+      summary: List all notes
+      parameters:
+        - name: search
+          in: query
+          required: false
+          schema:
+            type: string
+      responses:
+        "200":
+          description: List of notes
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Note"
+    post:
+      operationId: createNote
+      tags: [notes]
+      summary: Create a note
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/NoteInput"
+      responses:
+        "201":
+          description: Created note
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Note"
+
+  /notes/{id}:
+    get:
+      operationId: getNote
+      tags: [notes]
+      summary: Get a note by id
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Note
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Note"
+        "404":
+          description: Not found
+    patch:
+      operationId: updateNote
+      tags: [notes]
+      summary: Update a note
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/NoteUpdate"
+      responses:
+        "200":
+          description: Updated note
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Note"
+        "404":
+          description: Not found
+    delete:
+      operationId: deleteNote
+      tags: [notes]
+      summary: Delete a note
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+
+  # ── Chat History ────────────────────────────────────────────────────────────
+  /chats:
+    get:
+      operationId: listChats
+      tags: [chat]
+      summary: List saved chat sessions
+      responses:
+        "200":
+          description: List of chat sessions
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ChatSession"
+    post:
+      operationId: createChat
+      tags: [chat]
+      summary: Save a chat session
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ChatInput"
+      responses:
+        "201":
+          description: Saved chat
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ChatSession"
+
+  /chats/{id}:
+    delete:
+      operationId: deleteChat
+      tags: [chat]
+      summary: Delete a chat session
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+
+  # ── Quizzes ─────────────────────────────────────────────────────────────────
+  /quizzes:
+    get:
+      operationId: listQuizzes
+      tags: [quizzes]
+      summary: List quiz results
+      responses:
+        "200":
+          description: List of quiz results
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/QuizResult"
+    post:
+      operationId: saveQuizResult
+      tags: [quizzes]
+      summary: Save quiz result
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/QuizInput"
+      responses:
+        "201":
+          description: Saved quiz result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/QuizResult"
+
+  /quizzes/{id}:
+    delete:
+      operationId: deleteQuiz
+      tags: [quizzes]
+      summary: Delete a quiz result
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+
+  # ── Flashcards ──────────────────────────────────────────────────────────────
+  /flashcards:
+    get:
+      operationId: listFlashcardSets
+      tags: [flashcards]
+      summary: List flashcard sets
+      responses:
+        "200":
+          description: List of flashcard sets
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/FlashcardSet"
+    post:
+      operationId: saveFlashcardSet
+      tags: [flashcards]
+      summary: Save flashcard set
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/FlashcardInput"
+      responses:
+        "201":
+          description: Saved flashcard set
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FlashcardSet"
+
+  /flashcards/{id}:
+    delete:
+      operationId: deleteFlashcardSet
+      tags: [flashcards]
+      summary: Delete a flashcard set
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+
+  # ── Summaries ───────────────────────────────────────────────────────────────
+  /summaries:
+    get:
+      operationId: listSummaries
+      tags: [summaries]
+      summary: List saved summaries
+      responses:
+        "200":
+          description: List of summaries
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Summary"
+    post:
+      operationId: saveSummary
+      tags: [summaries]
+      summary: Save a summary
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SummaryInput"
+      responses:
+        "201":
+          description: Saved summary
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Summary"
+
+  /summaries/{id}:
+    delete:
+      operationId: deleteSummary
+      tags: [summaries]
+      summary: Delete a summary
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+
+  # ── Generated Images ─────────────────────────────────────────────────────────
+  /images:
+    get:
+      operationId: listImages
+      tags: [images]
+      summary: List generated images
+      responses:
+        "200":
+          description: List of generated images
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/GeneratedImage"
+    post:
+      operationId: saveImage
+      tags: [images]
+      summary: Save a generated image record
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ImageInput"
+      responses:
+        "201":
+          description: Saved image record
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GeneratedImage"
+
+  /images/{id}:
+    delete:
+      operationId: deleteImage
+      tags: [images]
+      summary: Delete an image record
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+
+  # ── AI Endpoints ────────────────────────────────────────────────────────────
+  /ai/chat:
+    post:
+      operationId: aiChat
+      tags: [ai]
+      summary: Send a message to the AI tutor
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AiChatRequest"
+      responses:
+        "200":
+          description: AI response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AiChatResult"
+
+  /ai/summarize:
+    post:
+      operationId: aiSummarize
+      tags: [ai]
+      summary: Summarize text or notes
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AiSummarizeRequest"
+      responses:
+        "200":
+          description: Summary result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AiSummarizeResult"
+
+  /ai/quiz:
+    post:
+      operationId: aiGenerateQuiz
+      tags: [ai]
+      summary: Generate a quiz
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AiQuizRequest"
+      responses:
+        "200":
+          description: Generated quiz questions
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AiQuizResponse"
+
+  /ai/flashcards:
+    post:
+      operationId: aiGenerateFlashcards
+      tags: [ai]
+      summary: Generate flashcards
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AiFlashcardsRequest"
+      responses:
+        "200":
+          description: Generated flashcards
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AiFlashcardsResponse"
+
+  /ai/enhance-notes:
+    post:
+      operationId: aiEnhanceNotes
+      tags: [ai]
+      summary: AI enhance or improve notes
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AiEnhanceNotesRequest"
+      responses:
+        "200":
+          description: Enhanced notes
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AiEnhanceNotesResult"
+
+  # ── Dashboard ────────────────────────────────────────────────────────────────
+  /dashboard/stats:
+    get:
+      operationId: getDashboardStats
+      tags: [dashboard]
+      summary: Get dashboard summary statistics
+      responses:
+        "200":
+          description: Dashboard stats
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DashboardStats"
+
+  /dashboard/activity:
+    get:
+      operationId: getRecentActivity
+      tags: [dashboard]
+      summary: Get recent activity feed
+      responses:
+        "200":
+          description: Recent activity list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ActivityItem"
+
+components:
+  schemas:
+    HealthStatus:
+      type: object
+      properties:
+        status:
+          type: string
+      required:
+        - status
+
+    # ── Notes ──────────────────────────────────────────────────────────────────
+    Note:
+      type: object
+      required: [id, title, content, createdAt, updatedAt]
+      properties:
+        id:
+          type: integer
+        title:
+          type: string
+        content:
+          type: string
+        createdAt:
+          type: string
+        updatedAt:
+          type: string
+
+    NoteInput:
+      type: object
+      required: [title, content]
+      properties:
+        title:
+          type: string
+          minLength: 1
+        content:
+          type: string
+
+    NoteUpdate:
+      type: object
+      properties:
+        title:
+          type: string
+          minLength: 1
+        content:
+          type: string
+
+    # ── Chat ──────────────────────────────────────────────────────────────────
+    ChatMessage:
+      type: object
+      required: [role, content]
+      properties:
+        role:
+          type: string
+        content:
+          type: string
+
+    ChatSession:
+      type: object
+      required: [id, title, messages, createdAt]
+      properties:
+        id:
+          type: integer
+        title:
+          type: string
+        messages:
+          type: array
+          items:
+            $ref: "#/components/schemas/ChatMessage"
+        createdAt:
+          type: string
+
+    ChatInput:
+      type: object
+      required: [title, messages]
+      properties:
+        title:
+          type: string
+        messages:
+          type: array
+          items:
+            $ref: "#/components/schemas/ChatMessage"
+
+    # ── Quizzes ──────────────────────────────────────────────────────────────
+    QuizQuestion:
+      type: object
+      required: [question, options, correctAnswer, explanation]
+      properties:
+        question:
+          type: string
+        options:
+          type: array
+          items:
+            type: string
+        correctAnswer:
+          type: string
+        explanation:
+          type: string
+
+    QuizResult:
+      type: object
+      required: [id, topic, score, total, questions, createdAt]
+      properties:
+        id:
+          type: integer
+        topic:
+          type: string
+        score:
+          type: integer
+        total:
+          type: integer
+        questions:
+          type: array
+          items:
+            $ref: "#/components/schemas/QuizQuestion"
+        createdAt:
+          type: string
+
+    QuizInput:
+      type: object
+      required: [topic, score, total, questions]
+      properties:
+        topic:
+          type: string
+        score:
+          type: integer
+        total:
+          type: integer
+        questions:
+          type: array
+          items:
+            $ref: "#/components/schemas/QuizQuestion"
+
+    # ── Flashcards ──────────────────────────────────────────────────────────
+    Flashcard:
+      type: object
+      required: [front, back]
+      properties:
+        front:
+          type: string
+        back:
+          type: string
+
+    FlashcardSet:
+      type: object
+      required: [id, topic, cards, createdAt]
+      properties:
+        id:
+          type: integer
+        topic:
+          type: string
+        cards:
+          type: array
+          items:
+            $ref: "#/components/schemas/Flashcard"
+        createdAt:
+          type: string
+
+    FlashcardInput:
+      type: object
+      required: [topic, cards]
+      properties:
+        topic:
+          type: string
+        cards:
+          type: array
+          items:
+            $ref: "#/components/schemas/Flashcard"
+
+    # ── Summaries ──────────────────────────────────────────────────────────
+    Summary:
+      type: object
+      required: [id, originalText, summary, keyPoints, examQuestions, createdAt]
+      properties:
+        id:
+          type: integer
+        originalText:
+          type: string
+        summary:
+          type: string
+        keyPoints:
+          type: array
+          items:
+            type: string
+        examQuestions:
+          type: array
+          items:
+            type: string
+        createdAt:
+          type: string
+
+    SummaryInput:
+      type: object
+      required: [originalText, summary, keyPoints, examQuestions]
+      properties:
+        originalText:
+          type: string
+        summary:
+          type: string
+        keyPoints:
+          type: array
+          items:
+            type: string
+        examQuestions:
+          type: array
+          items:
+            type: string
+
+    # ── Images ──────────────────────────────────────────────────────────────
+    GeneratedImage:
+      type: object
+      required: [id, prompt, imageUrl, style, createdAt]
+      properties:
+        id:
+          type: integer
+        prompt:
+          type: string
+        imageUrl:
+          type: string
+        style:
+          type: string
+        createdAt:
+          type: string
+
+    ImageInput:
+      type: object
+      required: [prompt, imageUrl, style]
+      properties:
+        prompt:
+          type: string
+        imageUrl:
+          type: string
+        style:
+          type: string
+
+    # ── AI Requests/Responses ───────────────────────────────────────────────
+    AiChatRequest:
+      type: object
+      required: [messages]
+      properties:
+        messages:
+          type: array
+          items:
+            $ref: "#/components/schemas/ChatMessage"
+
+    AiChatResult:
+      type: object
+      required: [content]
+      properties:
+        content:
+          type: string
+
+    AiSummarizeRequest:
+      type: object
+      required: [text]
+      properties:
+        text:
+          type: string
+
+    AiSummarizeResult:
+      type: object
+      required: [summary, keyPoints, examQuestions]
+      properties:
+        summary:
+          type: string
+        keyPoints:
+          type: array
+          items:
+            type: string
+        examQuestions:
+          type: array
+          items:
+            type: string
+
+    AiQuizRequest:
+      type: object
+      required: [topic, count, difficulty, type]
+      properties:
+        topic:
+          type: string
+        count:
+          type: integer
+        difficulty:
+          type: string
+        type:
+          type: string
+
+    AiQuizResponse:
+      type: object
+      required: [questions]
+      properties:
+        questions:
+          type: array
+          items:
+            $ref: "#/components/schemas/QuizQuestion"
+
+    AiFlashcardsRequest:
+      type: object
+      required: [topic]
+      properties:
+        topic:
+          type: string
+
+    AiFlashcardsResponse:
+      type: object
+      required: [cards]
+      properties:
+        cards:
+          type: array
+          items:
+            $ref: "#/components/schemas/Flashcard"
+
+    AiEnhanceNotesRequest:
+      type: object
+      required: [content, mode]
+      properties:
+        content:
+          type: string
+        mode:
+          type: string
+          description: "enhance or summarize"
+
+    AiEnhanceNotesResult:
+      type: object
+      required: [content]
+      properties:
+        content:
+          type: string
+
+    # ── Dashboard ───────────────────────────────────────────────────────────
+    DashboardStats:
+      type: object
+      required: [totalNotes, totalChats, totalQuizzes, totalFlashcardSets, totalImages, avgQuizScore]
+      properties:
+        totalNotes:
+          type: integer
+        totalChats:
+          type: integer
+        totalQuizzes:
+          type: integer
+        totalFlashcardSets:
+          type: integer
+        totalImages:
+          type: integer
+        avgQuizScore:
+          type: ["number", "null"]
+
+    ActivityItem:
+      type: object
+      required: [id, type, title, createdAt]
+      properties:
+        id:
+          type: string
+        type:
+          type: string
+        title:
+          type: string
+        createdAt:
+          type: string

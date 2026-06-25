@@ -2,8 +2,6 @@
 
 # compiled output
 dist
-dist-fe
-public
 tmp
 out-tsc
 *.tsbuildinfo
