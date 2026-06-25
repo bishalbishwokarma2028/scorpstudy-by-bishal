@@ -1,14 +1,9 @@
 {
   "version": 2,
-  "buildCommand": "pnpm install && pnpm --filter @workspace/scorpstudy build",
-  "outputDirectory": "public",
   "installCommand": "pnpm install",
+  "buildCommand": "pnpm --filter @workspace/scorpstudy build",
+  "outputDirectory": "artifacts/scorpstudy/dist",
   "framework": null,
-  "env": {
-    "BASE_PATH": "/",
-    "PORT": "3000",
-    "NODE_ENV": "production"
-  },
   "build": {
     "env": {
       "BASE_PATH": "/",
