@@ -43,15 +43,23 @@ export function UserProfileProvider({ children }: { children: ReactNode }) {
     setProfileLoaded(true);
   }, [user?.id]);
 
+  const { supabase } = useAuth();
+
   const saveProfile = (data: UserProfileData) => {
     setProfile(data);
-    if (user) {
+    if (user && supabase) {
       localStorage.setItem(`scorpstudy-profile-${user.id}`, JSON.stringify(data));
-      fetch(`${BASE}/api/profile`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ userId: user.id, ...data }),
-      }).catch(() => {});
+      supabase.auth.getSession().then(({ data: sessionData }) => {
+        const token = sessionData.session?.access_token;
+        fetch(`${BASE}/api/profile`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          },
+          body: JSON.stringify(data),
+        }).catch(() => {});
+      });
     }
   };
 
