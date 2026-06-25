@@ -14,7 +14,7 @@ export default function SignIn() {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const { supabase } = useAuth();
+  const { supabase, refreshSession } = useAuth();
   const [, navigate] = useLocation();
 
   const handleSignIn = async (e: React.FormEvent) => {

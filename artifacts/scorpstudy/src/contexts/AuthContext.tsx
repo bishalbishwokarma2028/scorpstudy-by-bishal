@@ -9,6 +9,7 @@ interface AuthContextValue {
   supabase: SupabaseClient | null;
   loading: boolean;
   signOut: () => Promise<void>;
+  refreshSession: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextValue>({
@@ -17,6 +18,7 @@ const AuthContext = createContext<AuthContextValue>({
   supabase: null,
   loading: true,
   signOut: async () => {},
+  refreshSession: async () => {},
 });
 
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -41,6 +43,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       sb.auth.onAuthStateChange((_event, newSession) => {
         if (!mounted) return;
         setSession(newSession);
+        setLoading(false);
       });
     }).catch(() => {
       if (mounted) setLoading(false);
@@ -52,6 +55,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (supabaseClient) await supabaseClient.auth.signOut();
   };
 
+  const refreshSession = async () => {
+    if (!supabaseClient) return;
+    const { data } = await supabaseClient.auth.getSession();
+    setSession(data.session);
+    setLoading(false);
+  };
+
   return (
     <AuthContext.Provider value={{
       session,
@@ -59,6 +69,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       supabase: supabaseClient,
       loading,
       signOut,
+      refreshSession,
     }}>
       {children}
     </AuthContext.Provider>

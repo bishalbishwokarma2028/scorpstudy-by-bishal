@@ -13,16 +13,12 @@ export function ProtectedRoute({ children }: { children: ReactNode }) {
     }
   }, [loading, session, navigate]);
 
-  if (loading) {
+  if (loading || (!loading && !session)) {
     return (
       <div className="min-h-screen bg-slate-50 flex items-center justify-center">
         <Loader2 className="w-8 h-8 animate-spin text-primary" />
       </div>
     );
-  }
-
-  if (!session) {
-    return null;
   }
 
   return <>{children}</>;

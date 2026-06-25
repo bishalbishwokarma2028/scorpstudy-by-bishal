@@ -17,7 +17,7 @@ export default function SignUp() {
   const [loading, setLoading] = useState(false);
   const [done, setDone] = useState(false);
   const [error, setError] = useState("");
-  const { supabase } = useAuth();
+  const { supabase, refreshSession } = useAuth();
   const [, navigate] = useLocation();
 
   const handleSignUp = async (e: React.FormEvent) => {
