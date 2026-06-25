@@ -27,7 +27,13 @@ export default function SignUp() {
     if (password !== confirm) { setError("Passwords do not match. Please try again."); return; }
     if (password.length < 6) { setError("Password must be at least 6 characters long."); return; }
     setLoading(true);
-    const { data, error: authError } = await supabase.auth.signUp({ email, password });
+    const { data, error: authError } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        emailRedirectTo: `${window.location.origin}/signin`,
+      },
+    });
     setLoading(false);
     if (authError) {
       if (authError.message.toLowerCase().includes("already") || authError.message.toLowerCase().includes("registered") || authError.message.toLowerCase().includes("taken")) {

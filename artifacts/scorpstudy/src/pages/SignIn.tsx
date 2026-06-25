@@ -25,9 +25,11 @@ export default function SignIn() {
     const { error: authError } = await supabase.auth.signInWithPassword({ email, password });
     setLoading(false);
     if (authError) {
-      if (authError.message.toLowerCase().includes("invalid") || authError.message.toLowerCase().includes("password") || authError.message.toLowerCase().includes("credentials")) {
-        setError("Password is Incorrect. Try Again.");
-      } else if (authError.message.toLowerCase().includes("email")) {
+      if (authError.message.toLowerCase().includes("not confirmed") || authError.message.toLowerCase().includes("confirm your")) {
+        setError("Please confirm your email first — check your inbox and click the confirmation link.");
+      } else if (authError.message.toLowerCase().includes("invalid") || authError.message.toLowerCase().includes("password") || authError.message.toLowerCase().includes("credentials")) {
+        setError("Password is incorrect. Try again.");
+      } else if (authError.message.toLowerCase().includes("not found") || authError.message.toLowerCase().includes("no user")) {
         setError("Email not found. Please sign up first.");
       } else {
         setError(authError.message);
