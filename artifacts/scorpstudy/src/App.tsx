@@ -17,7 +17,8 @@ const Chat       = lazy(() => import("@/pages/Chat"));
 const Summarizer = lazy(() => import("@/pages/Summarizer"));
 const Quiz       = lazy(() => import("@/pages/Quiz"));
 const Flashcards = lazy(() => import("@/pages/Flashcards"));
-const ImageGen   = lazy(() => import("@/pages/ImageGen"));
+const ImageGen          = lazy(() => import("@/pages/ImageGen"));
+const ImageQuestionSolver = lazy(() => import("@/pages/ImageQuestionSolver"));
 const Notes      = lazy(() => import("@/pages/Notes"));
 const History    = lazy(() => import("@/pages/History"));
 const Onboarding = lazy(() => import("@/pages/Onboarding"));
@@ -84,6 +85,7 @@ function Router() {
         <Route path="/dashboard/quiz">{() => <P><Quiz /></P>}</Route>
         <Route path="/dashboard/flashcards">{() => <P><Flashcards /></P>}</Route>
         <Route path="/dashboard/image-gen">{() => <P><ImageGen /></P>}</Route>
+        <Route path="/dashboard/image-solver">{() => <P><ImageQuestionSolver /></P>}</Route>
         <Route path="/dashboard/notes">{() => <P><Notes /></P>}</Route>
         <Route path="/dashboard/history">{() => <P><History /></P>}</Route>
         <Route component={NotFound} />

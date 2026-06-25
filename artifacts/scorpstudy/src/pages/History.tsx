@@ -9,6 +9,7 @@ import { Clock, MessageSquare, FileText, CheckSquare, Layers, Loader2, ArrowRigh
 import { format } from "date-fns";
 import { Link } from "wouter";
 import { toast } from "sonner";
+import { useAuth } from "@/contexts/AuthContext";
 
 const BASE = import.meta.env.BASE_URL?.replace(/\/$/, "") ?? "";
 
@@ -25,6 +26,7 @@ export default function History() {
   const [filter, setFilter] = useState<string>("all");
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const { data: activity, isLoading, refetch, isFetching } = useGetRecentActivity();
+  const { supabase } = useAuth();
 
   const filtered = (activity || [])
     .filter(item => ALLOWED_TYPES.has(item.type))
@@ -36,7 +38,16 @@ export default function History() {
     if (!config) return;
     setDeletingId(item.id);
     try {
-      const res = await fetch(`${BASE}${config.deleteUrl(item.id)}`, { method: "DELETE" });
+      let token: string | null = null;
+      if (supabase) {
+        const { data } = await supabase.auth.getSession();
+        token = data.session?.access_token ?? null;
+      }
+      const authHeaders: Record<string, string> = token ? { Authorization: `Bearer ${token}` } : {};
+      const res = await fetch(`${BASE}${config.deleteUrl(item.id)}`, {
+        method: "DELETE",
+        headers: authHeaders,
+      });
       if (!res.ok && res.status !== 204) throw new Error("Delete failed");
       toast.success("Deleted from history");
       refetch();

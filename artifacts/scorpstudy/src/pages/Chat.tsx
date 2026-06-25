@@ -2,6 +2,7 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { useUserProfile } from "@/contexts/UserProfileContext";
 import { useAuth } from "@/contexts/AuthContext";
+import { getSupabase } from "@/lib/supabase";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent } from "@/components/ui/card";
@@ -68,6 +69,15 @@ const COLOR_MAP: Record<string, string> = {
 };
 
 const BASE = import.meta.env.BASE_URL?.replace(/\/$/, "") ?? "";
+
+async function getToken(): Promise<string | null> {
+  try {
+    const { data } = await getSupabase().auth.getSession();
+    return data.session?.access_token ?? null;
+  } catch {
+    return null;
+  }
+}
 
 // Module-level state — persists across route changes in this SPA
 const persist = {
@@ -196,19 +206,21 @@ async function callVisualize(text: string): Promise<VisualData> {
 async function autoSaveChat(msgs: Message[]): Promise<void> {
   if (msgs.length < 2) return;
   try {
+    const token = await getToken();
+    const authHeaders: Record<string, string> = token ? { Authorization: `Bearer ${token}` } : {};
     const rawTitle = msgs[0].content.replace(/\[Document:[^\]]*\]/g, "").trim();
     const title = rawTitle.slice(0, 80) + (rawTitle.length > 80 ? "..." : "");
     if (persist.sessionChatId === null) {
       const res = await fetch(`${BASE}/api/chats`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...authHeaders },
         body: JSON.stringify({ title, messages: msgs }),
       });
       if (res.ok) { const d = await res.json(); persist.sessionChatId = d.id; }
     } else {
       await fetch(`${BASE}/api/chats/${persist.sessionChatId}`, {
         method: "PATCH",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...authHeaders },
         body: JSON.stringify({ messages: msgs }),
       });
     }
@@ -258,7 +270,10 @@ export default function Chat() {
         persist.sessionChatId = id;
         persist.messages = [];
         setMessages([]);
-        fetch(`${BASE}/api/chats/${id}`)
+        getToken().then(token => {
+          const authHeaders: Record<string, string> = token ? { Authorization: `Bearer ${token}` } : {};
+          return fetch(`${BASE}/api/chats/${id}`, { headers: authHeaders });
+        })
           .then(r => r.json())
           .then(d => {
             if (Array.isArray(d.messages)) {

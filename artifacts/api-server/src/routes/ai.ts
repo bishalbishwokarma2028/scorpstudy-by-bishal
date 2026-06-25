@@ -553,4 +553,47 @@ Rules:
   res.json(result);
 });
 
+// ─── /ai/image-solve ──────────────────────────────────────────────────────
+router.post("/ai/image-solve", async (req, res): Promise<void> => {
+  const imageData: unknown = req.body?.image_data;
+  const question: unknown = req.body?.question;
+
+  if (typeof imageData !== "string" || !imageData.startsWith("data:image")) {
+    res.status(400).json({ error: "image_data is required and must be a base64 data URL" });
+    return;
+  }
+
+  const questionText =
+    typeof question === "string" && question.trim().length > 0
+      ? question.trim()
+      : "Carefully analyze this image. Find and answer every question visible. Show all working and steps clearly.";
+
+  const systemPrompt = `You are an expert academic tutor. The student has uploaded an image of a question paper, exam, textbook page, or worksheet. Your job is to:
+1. Identify every question or problem in the image
+2. Solve each one completely with full step-by-step working
+3. Format answers clearly with numbered solutions
+4. Show all calculations and reasoning
+
+Be thorough, educational, and student-friendly.`;
+
+  const visionMessages: ChatMessage[] = [
+    { role: "system", content: systemPrompt },
+    {
+      role: "user",
+      content: [
+        { type: "image_url", image_url: { url: imageData } },
+        { type: "text", text: questionText },
+      ],
+    },
+  ];
+
+  const textMessages: ChatMessage[] = [
+    { role: "system", content: systemPrompt },
+    { role: "user", content: questionText },
+  ];
+
+  const content = await aiVisionCompletion(textMessages, visionMessages, 4096);
+  res.json({ content });
+});
+
 export default router;
