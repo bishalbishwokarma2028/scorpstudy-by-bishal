@@ -6,6 +6,16 @@ cd "$(dirname "$0")/../.."
 REPO_ROOT="$(pwd)"
 
 echo "==> Repo root: $REPO_ROOT"
+
+# Map SUPABASE_* → VITE_SUPABASE_* so Vite bakes them into the static bundle.
+# This means auth works without needing a running API server.
+export VITE_SUPABASE_URL="${VITE_SUPABASE_URL:-$SUPABASE_URL}"
+export VITE_SUPABASE_ANON_KEY="${VITE_SUPABASE_ANON_KEY:-$SUPABASE_ANON_KEY}"
+
+if [ -z "$VITE_SUPABASE_URL" ] || [ -z "$VITE_SUPABASE_ANON_KEY" ]; then
+  echo "WARNING: SUPABASE_URL / SUPABASE_ANON_KEY not set — auth will not work in production."
+fi
+
 echo "==> Installing dependencies..."
 pnpm install --frozen-lockfile
 
