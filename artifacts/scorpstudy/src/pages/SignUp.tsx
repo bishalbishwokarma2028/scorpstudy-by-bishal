@@ -17,12 +17,12 @@ export default function SignUp() {
   const [loading, setLoading] = useState(false);
   const [done, setDone] = useState(false);
   const [error, setError] = useState("");
-  const { supabase, refreshSession } = useAuth();
+  const { supabase, refreshSession, configError, loading: authLoading } = useAuth();
   const [, navigate] = useLocation();
 
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!supabase) { toast.error("Auth not ready, please wait"); return; }
+    if (!supabase) return;
     setError("");
     if (password !== confirm) { setError("Passwords do not match. Please try again."); return; }
     if (password.length < 6) { setError("Password must be at least 6 characters long."); return; }
@@ -83,6 +83,11 @@ export default function SignUp() {
             <CardDescription>Start studying smarter today — it's free</CardDescription>
           </CardHeader>
           <CardContent>
+            {configError && (
+              <div className="mb-4 bg-amber-50 border border-amber-200 text-amber-800 text-sm rounded-lg px-4 py-3">
+                <strong>Connection error:</strong> Could not reach the server. Please try refreshing the page.
+              </div>
+            )}
             <form onSubmit={handleSignUp} className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="email">Email</Label>
@@ -111,9 +116,9 @@ export default function SignUp() {
                   {error}
                 </div>
               )}
-              <Button type="submit" className="w-full h-11" disabled={loading}>
-                {loading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
-                Create Account
+              <Button type="submit" className="w-full h-11" disabled={loading || authLoading || !!configError}>
+                {(loading || authLoading) ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
+                {authLoading ? "Connecting..." : "Create Account"}
               </Button>
             </form>
             <div className="mt-4 text-center text-sm text-slate-600">

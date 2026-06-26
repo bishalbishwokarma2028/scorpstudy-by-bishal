@@ -8,6 +8,7 @@ interface AuthContextValue {
   user: User | null;
   supabase: SupabaseClient | null;
   loading: boolean;
+  configError: string | null;
   signOut: () => Promise<void>;
   refreshSession: () => Promise<void>;
 }
@@ -17,6 +18,7 @@ const AuthContext = createContext<AuthContextValue>({
   user: null,
   supabase: null,
   loading: true,
+  configError: null,
   signOut: async () => {},
   refreshSession: async () => {},
 });
@@ -25,12 +27,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [supabaseClient, setSupabaseClient] = useState<SupabaseClient | null>(null);
   const [loading, setLoading] = useState(true);
+  const [configError, setConfigError] = useState<string | null>(null);
 
   useEffect(() => {
     let mounted = true;
     initSupabase().then((sb) => {
       if (!mounted) return;
       setSupabaseClient(sb);
+      setConfigError(null);
       setAuthTokenGetter(async () => {
         const { data } = await sb.auth.getSession();
         return data.session?.access_token ?? null;
@@ -45,8 +49,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setSession(newSession);
         setLoading(false);
       });
-    }).catch(() => {
-      if (mounted) setLoading(false);
+    }).catch((err: unknown) => {
+      if (!mounted) return;
+      const msg = err instanceof Error ? err.message : String(err);
+      setConfigError(msg || "Failed to connect to the server. Please try again later.");
+      setLoading(false);
     });
     return () => { mounted = false; };
   }, []);
@@ -68,6 +75,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       user: session?.user ?? null,
       supabase: supabaseClient,
       loading,
+      configError,
       signOut,
       refreshSession,
     }}>

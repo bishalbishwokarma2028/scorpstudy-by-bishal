@@ -14,12 +14,12 @@ export default function SignIn() {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const { supabase, refreshSession } = useAuth();
+  const { supabase, refreshSession, configError, loading: authLoading } = useAuth();
   const [, navigate] = useLocation();
 
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!supabase) { toast.error("Auth not ready, please wait"); return; }
+    if (!supabase) return;
     setError("");
     setLoading(true);
     const { error: authError } = await supabase.auth.signInWithPassword({ email, password });
@@ -59,6 +59,11 @@ export default function SignIn() {
             <CardDescription>Sign in to your study account</CardDescription>
           </CardHeader>
           <CardContent>
+            {configError && (
+              <div className="mb-4 bg-amber-50 border border-amber-200 text-amber-800 text-sm rounded-lg px-4 py-3">
+                <strong>Connection error:</strong> Could not reach the server. Please try refreshing the page.
+              </div>
+            )}
             <form onSubmit={handleSignIn} className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="email">Email</Label>
@@ -100,9 +105,9 @@ export default function SignIn() {
                   {error}
                 </div>
               )}
-              <Button type="submit" className="w-full h-11" disabled={loading}>
-                {loading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
-                Sign In
+              <Button type="submit" className="w-full h-11" disabled={loading || authLoading || !!configError}>
+                {(loading || authLoading) ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
+                {authLoading ? "Connecting..." : "Sign In"}
               </Button>
             </form>
             <div className="mt-4 text-center text-sm text-slate-600">
