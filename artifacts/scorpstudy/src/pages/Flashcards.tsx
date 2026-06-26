@@ -71,7 +71,7 @@ export default function Flashcards() {
 
   return (
     <DashboardLayout>
-      <div className="space-y-6 max-w-4xl mx-auto flex flex-col h-[calc(100vh-6rem)]">
+      <div className="space-y-6 max-w-4xl mx-auto flex flex-col">
         <div>
           <h1 className="text-2xl font-bold text-slate-900 flex items-center gap-2">
             <Layers className="w-6 h-6 text-purple-600" />
@@ -108,7 +108,7 @@ export default function Flashcards() {
               </div>
             </div>
 
-            <div className="relative w-full max-w-2xl h-[400px] perspective-1000">
+            <div className="relative w-full max-w-2xl h-[260px] sm:h-[340px] md:h-[400px] perspective-1000">
               <motion.div
                 className="w-full h-full relative transform-style-3d cursor-pointer"
                 animate={{ rotateY: isFlipped ? 180 : 0 }}
@@ -116,31 +116,32 @@ export default function Flashcards() {
                 onClick={() => setIsFlipped(!isFlipped)}
               >
                 {/* Front */}
-                <Card className="absolute w-full h-full backface-hidden border-2 border-slate-200 hover:border-purple-200 transition-colors shadow-sm flex items-center justify-center p-8 text-center bg-white rounded-2xl">
-                  <div className="text-3xl font-bold text-slate-800 leading-tight">
+                <Card className="absolute w-full h-full backface-hidden border-2 border-slate-200 hover:border-purple-200 transition-colors shadow-sm flex items-center justify-center p-6 sm:p-8 text-center bg-white rounded-2xl">
+                  <div className="text-xl sm:text-2xl md:text-3xl font-bold text-slate-800 leading-tight">
                     {cards[currentIndex].front}
                   </div>
-                  <div className="absolute bottom-4 right-4 text-xs text-slate-400 font-medium">Click to flip</div>
+                  <div className="absolute bottom-3 right-4 text-xs text-slate-400 font-medium">Tap to flip</div>
                 </Card>
 
                 {/* Back */}
-                <Card className="absolute w-full h-full backface-hidden rotate-y-180 border-2 border-purple-200 shadow-md flex items-center justify-center p-8 text-center bg-purple-50 rounded-2xl">
-                  <div className="text-2xl font-medium text-purple-900 leading-relaxed">
+                <Card className="absolute w-full h-full backface-hidden rotate-y-180 border-2 border-purple-200 shadow-md flex items-center justify-center p-6 sm:p-8 text-center bg-purple-50 rounded-2xl">
+                  <div className="text-lg sm:text-xl md:text-2xl font-medium text-purple-900 leading-relaxed">
                     {cards[currentIndex].back}
                   </div>
-                  <div className="absolute bottom-4 right-4 text-xs text-purple-400 font-medium">Click to flip</div>
+                  <div className="absolute bottom-3 right-4 text-xs text-purple-400 font-medium">Tap to flip</div>
                 </Card>
               </motion.div>
             </div>
 
-            <div className="flex items-center gap-6 mt-8">
-              <Button variant="outline" size="icon" className="w-12 h-12 rounded-full" onClick={prevCard}>
+            <div className="flex items-center gap-4 sm:gap-6 mt-6 sm:mt-8">
+              <Button variant="outline" size="icon" className="w-12 h-12 rounded-full touch-manipulation" onClick={prevCard}>
                 <ArrowLeft className="w-5 h-5" />
               </Button>
-              <div className="text-sm font-medium text-slate-400 w-24 text-center">
-                Use arrows to navigate
+              <div className="text-sm font-medium text-slate-400 flex-1 text-center">
+                <span className="hidden sm:inline">Use arrows to navigate</span>
+                <span className="sm:hidden">Swipe with arrows</span>
               </div>
-              <Button variant="outline" size="icon" className="w-12 h-12 rounded-full" onClick={nextCard}>
+              <Button variant="outline" size="icon" className="w-12 h-12 rounded-full touch-manipulation" onClick={nextCard}>
                 <ArrowRight className="w-5 h-5" />
               </Button>
             </div>

@@ -129,7 +129,7 @@ export default function History() {
                           </div>
                         </div>
                       </div>
-                      <div className="flex items-center gap-1 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <div className="flex items-center gap-1 shrink-0 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
                         <Link href={link}>
                           <Button
                             variant="ghost"

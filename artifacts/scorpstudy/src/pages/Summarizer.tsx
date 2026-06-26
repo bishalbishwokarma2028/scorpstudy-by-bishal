@@ -300,7 +300,7 @@ export default function Summarizer() {
                   <p className="text-slate-400 text-xs">This may take a few seconds</p>
                 </div>
               ) : result ? (
-                <div className="space-y-5 h-[360px] overflow-y-auto pr-1">
+                <div className="space-y-5 max-h-[360px] overflow-y-auto pr-1">
                   <div>
                     <div className="flex items-center gap-2 mb-2">
                       <Sparkles className="w-4 h-4 text-indigo-500" />

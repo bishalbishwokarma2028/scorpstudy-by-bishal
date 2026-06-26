@@ -205,27 +205,27 @@ export default function ImageGen() {
                 className="resize-none text-sm min-h-[80px] bg-slate-50"
                 disabled={limitReached}
               />
-              <div className="flex flex-wrap gap-2">
+              <div className="flex gap-2 overflow-x-auto pb-1 -mx-1 px-1 scrollbar-none">
                 {SUGGESTIONS.map((s) => (
                   <button key={s} onClick={() => setPrompt(s)} disabled={limitReached}
-                    className="text-xs px-2.5 py-1 rounded-full border border-slate-200 text-slate-600 hover:border-fuchsia-400 hover:text-fuchsia-700 hover:bg-fuchsia-50 transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
+                    className="text-xs px-2.5 py-1 rounded-full border border-slate-200 text-slate-600 hover:border-fuchsia-400 hover:text-fuchsia-700 hover:bg-fuchsia-50 transition-colors disabled:opacity-40 disabled:cursor-not-allowed whitespace-nowrap shrink-0">
                     {s}
                   </button>
                 ))}
               </div>
             </div>
 
-            <div className="flex flex-wrap gap-3 items-center justify-between">
-              <div className="flex flex-wrap gap-2">
+            <div className="space-y-3">
+              <div className="flex gap-2 overflow-x-auto pb-1 -mx-1 px-1 scrollbar-none">
                 {Object.entries(STYLES).map(([key, val]) => (
                   <button key={key} onClick={() => setStyle(key)}
-                    className={`text-xs px-3 py-1.5 rounded-full border transition-colors ${style === key ? "bg-fuchsia-100 border-fuchsia-400 text-fuchsia-800 font-semibold" : "border-slate-200 text-slate-600 hover:bg-slate-50"}`}>
+                    className={`text-xs px-3 py-1.5 rounded-full border transition-colors shrink-0 whitespace-nowrap ${style === key ? "bg-fuchsia-100 border-fuchsia-400 text-fuchsia-800 font-semibold" : "border-slate-200 text-slate-600 hover:bg-slate-50"}`}>
                     {val.label}
                   </button>
                 ))}
               </div>
               <Button onClick={handleGenerate} disabled={isGenerating || !prompt.trim() || limitReached}
-                className="bg-fuchsia-600 hover:bg-fuchsia-700 gap-2 shrink-0">
+                className="w-full sm:w-auto bg-fuchsia-600 hover:bg-fuchsia-700 gap-2">
                 {isGenerating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Wand2 className="w-4 h-4" />}
                 {isGenerating ? (isEnhancing ? "Enhancing prompt…" : "Generating…") : "Generate Image"}
               </Button>

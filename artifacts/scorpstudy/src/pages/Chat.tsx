@@ -477,37 +477,40 @@ export default function Chat() {
             </div>
             Bishal's Assistant
           </h1>
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap gap-1.5">
             <Button
               variant={isTopperMode ? "default" : "outline"}
               size="sm"
               onClick={handleToggleTopper}
-              className={isTopperMode ? "bg-amber-500 hover:bg-amber-600 text-white border-0" : "text-slate-600"}
+              className={`${isTopperMode ? "bg-amber-500 hover:bg-amber-600 text-white border-0" : "text-slate-600"} px-2 sm:px-3`}
+              title={isTopperMode ? "Topper Mode ON" : "Topper Style"}
             >
-              <GraduationCap className="w-4 h-4 mr-1" />
-              {isTopperMode ? "Topper ON" : "Topper Style"}
+              <GraduationCap className="w-4 h-4 sm:mr-1" />
+              <span className="hidden sm:inline">{isTopperMode ? "Topper ON" : "Topper"}</span>
             </Button>
             <Button
               variant="outline"
               size="sm"
               onClick={() => handleVisualize("selection")}
               disabled={visualLoading !== null}
-              className="text-purple-700 border-purple-200 hover:bg-purple-50"
+              className="text-purple-700 border-purple-200 hover:bg-purple-50 px-2 sm:px-3"
+              title="Visualize"
             >
-              {visualLoading === "global" ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <ImageIcon className="w-4 h-4 mr-1" />}
-              Visual
+              {visualLoading === "global" ? <Loader2 className="w-4 h-4 sm:mr-1 animate-spin" /> : <ImageIcon className="w-4 h-4 sm:mr-1" />}
+              <span className="hidden sm:inline">Visual</span>
             </Button>
-            <Button variant="outline" size="sm" onClick={handleNew} className="text-slate-600 gap-1">
-              <Plus className="w-4 h-4" /> New
+            <Button variant="outline" size="sm" onClick={handleNew} className="text-slate-600 px-2 sm:px-3" title="New chat">
+              <Plus className="w-4 h-4 sm:mr-1" /><span className="hidden sm:inline">New</span>
             </Button>
             <Button
               variant="outline" size="sm"
               onClick={handleManualSave}
               disabled={messages.length === 0 || savedThisSession}
-              className="text-slate-600 gap-1"
+              className="text-slate-600 px-2 sm:px-3"
+              title="Save chat"
             >
-              {savedThisSession ? <Check className="w-4 h-4 text-green-500" /> : <Save className="w-4 h-4" />}
-              {savedThisSession ? "Saved" : "Save"}
+              {savedThisSession ? <Check className="w-4 h-4 text-green-500 sm:mr-1" /> : <Save className="w-4 h-4 sm:mr-1" />}
+              <span className="hidden sm:inline">{savedThisSession ? "Saved" : "Save"}</span>
             </Button>
           </div>
         </div>

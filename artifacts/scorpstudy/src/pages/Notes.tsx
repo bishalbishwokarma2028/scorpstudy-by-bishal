@@ -614,21 +614,22 @@ export default function Notes() {
             </button>
           </div>
 
-          <div className="flex items-center gap-1.5 ml-auto">
-            <Button variant="ghost" size="sm" className="h-7 text-xs text-pink-600 hover:bg-pink-50 gap-1" onClick={() => handleAiAction("enhance")} disabled={aiLoading !== null || !content.trim()}>
+          <div className="flex items-center gap-1 ml-auto flex-wrap justify-end">
+            <Button variant="ghost" size="sm" className="h-7 text-xs text-pink-600 hover:bg-pink-50 px-1.5" onClick={() => handleAiAction("enhance")} disabled={aiLoading !== null || !content.trim()} title="AI Enhance">
               {aiLoading === "enhance" ? <Loader2 className="w-3 h-3 animate-spin" /> : <Sparkles className="w-3 h-3" />}
-              Enhance
+              <span className="hidden sm:inline ml-1">Enhance</span>
             </Button>
-            <Button variant="ghost" size="sm" className="h-7 text-xs text-indigo-600 hover:bg-indigo-50 gap-1" onClick={() => handleAiAction("summarize")} disabled={aiLoading !== null || !content.trim()}>
+            <Button variant="ghost" size="sm" className="h-7 text-xs text-indigo-600 hover:bg-indigo-50 px-1.5" onClick={() => handleAiAction("summarize")} disabled={aiLoading !== null || !content.trim()} title="Summarize">
               {aiLoading === "summarize" ? <Loader2 className="w-3 h-3 animate-spin" /> : <Wand2 className="w-3 h-3" />}
-              Summarize
+              <span className="hidden sm:inline ml-1">Summarize</span>
             </Button>
-            <Button variant="ghost" size="sm" className="h-7 text-xs text-violet-600 hover:bg-violet-50 gap-1" onClick={handleGenerateQuiz} disabled={aiLoading !== null || !content.trim()}>
+            <Button variant="ghost" size="sm" className="h-7 text-xs text-violet-600 hover:bg-violet-50 px-1.5" onClick={handleGenerateQuiz} disabled={aiLoading !== null || !content.trim()} title="Quiz Me">
               {aiLoading === "quiz" ? <Loader2 className="w-3 h-3 animate-spin" /> : <FileText className="w-3 h-3" />}
-              Quiz Me
+              <span className="hidden sm:inline ml-1">Quiz</span>
             </Button>
-            <Button variant="ghost" size="sm" className="h-7 text-xs text-slate-500 hover:bg-slate-100 gap-1" onClick={exportNoteToPdf} disabled={!content.trim()}>
-              <Download className="w-3 h-3" /> Export to PDF
+            <Button variant="ghost" size="sm" className="h-7 text-xs text-slate-500 hover:bg-slate-100 px-1.5" onClick={exportNoteToPdf} disabled={!content.trim()} title="Export to PDF">
+              <Download className="w-3 h-3" />
+              <span className="hidden sm:inline ml-1">PDF</span>
             </Button>
             <Button size="sm" className="h-7 text-xs bg-pink-600 hover:bg-pink-700 gap-1" onClick={() => doSave()} disabled={createNote.isPending || updateNote.isPending}>
               {(createNote.isPending || updateNote.isPending) ? <Loader2 className="w-3 h-3 animate-spin" /> : <Save className="w-3 h-3" />}
