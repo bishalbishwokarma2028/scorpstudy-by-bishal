@@ -36,6 +36,7 @@ export default function SignIn() {
       }
     } else {
       toast.success("Welcome back!");
+      await refreshSession();
       navigate("/dashboard");
     }
   };

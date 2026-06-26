@@ -43,6 +43,7 @@ export default function SignUp() {
       }
     } else if (data.session) {
       toast.success("Account created! Welcome to ScorpStudy.");
+      await refreshSession();
       navigate("/dashboard");
     } else {
       setDone(true);
